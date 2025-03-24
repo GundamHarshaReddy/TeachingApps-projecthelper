@@ -60,3 +60,20 @@ export interface AssistantData {
   projectDomain: string;
   projectId?: string | null;
 }
+
+export interface DiagramData {
+  diagramType: string;
+  projectName: string;
+  projectDescription: string;
+  grade: string;
+  projectDomain: string;
+  projectId?: string | null;
+  nodes: any[];
+  edges: any[];
+}
+
+export interface DiagramBuilderProps {
+  diagramData?: DiagramData;
+  projectData?: ProjectData | null;
+  onAssistantData: (data: AssistantData) => void;
+}

@@ -18,6 +18,7 @@ export async function createProjectInDB(data: ProjectFormData): Promise<string> 
     const projectId = uuidv4();
     
     // Insert the project data into the 'projects' table
+    // Use a placeholder user_id for development or retrieve it from auth if available
     const { error } = await supabase
       .from('projects')
       .insert({
@@ -26,18 +27,18 @@ export async function createProjectInDB(data: ProjectFormData): Promise<string> 
         grade: data.grade,
         domain: data.projectDomain,
         description: data.description,
-        created_at: new Date().toISOString(),
+        user_id: '00000000-0000-0000-0000-000000000000' // Placeholder user_id for development
       });
-
+    
     if (error) {
       console.error("Error inserting project:", error);
       throw new Error(`Database error: ${error.message}`);
     }
 
     return projectId;
-  } catch (error) {
-    console.error("Error in createProjectInDB:", error);
-    throw error;
+  } catch (err) {
+    console.error("Error in createProjectInDB:", err);
+    throw err;
   }
 }
 

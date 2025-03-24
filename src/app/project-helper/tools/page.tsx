@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { getProjectById } from "../actions/projects";
+import { getDiagramByProjectId } from "../actions/diagrams";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -11,8 +12,9 @@ import ProjectNavbar from "../components/ProjectNavbar";
 import ProjectIdeation from "../components/ProjectIdeation";
 import ProjectPlanner from "../components/ProjectPlanner";
 import ResourceSuggestions from "../components/ResourceSuggestions";
+import DiagramBuilder from "../components/DiagramBuilder";
 import ProblemSolver from "../components/ProblemSolver";
-import type { ProjectData, ResourceData, AssistantData } from "../types";
+import type { ProjectData, ResourceData, AssistantData, DiagramData } from "../types";
 
 interface Project {
   id: string;
@@ -36,11 +38,13 @@ export default function ToolsPage() {
   const [ideationStarted, setIdeationStarted] = useState(false);
   const [plannerStarted, setPlannerStarted] = useState(false);
   const [resourcesStarted, setResourcesStarted] = useState(false);
+  const [diagramStarted, setDiagramStarted] = useState(false);
   const [assistantStarted, setAssistantStarted] = useState(false);
   
   // States for data passing between components
   const [projectData, setProjectData] = useState<ProjectData | null>(null);
   const [resourceData, setResourceData] = useState<ResourceData | undefined>();
+  const [diagramData, setDiagramData] = useState<DiagramData | undefined>();
   const [assistantData, setAssistantData] = useState<AssistantData | undefined>();
 
   useEffect(() => {
@@ -64,6 +68,21 @@ export default function ToolsPage() {
           id: projectData.id,
           duration: "unknown" // Default value
         });
+        
+        // Try to load diagram data if exists
+        const diagram = await getDiagramByProjectId(projectId);
+        if (diagram) {
+          setDiagramData({
+            diagramType: diagram.diagramType,
+            projectName: projectData.name,
+            projectDescription: projectData.description,
+            grade: projectData.grade,
+            projectDomain: projectData.domain,
+            projectId: projectId,
+            nodes: diagram.nodes,
+            edges: diagram.edges
+          });
+        }
         
       } catch (err) {
         console.error("Error fetching project:", err);
@@ -94,6 +113,10 @@ export default function ToolsPage() {
     setResourcesStarted(true);
   };
   
+  const handleStartDiagram = () => {
+    setDiagramStarted(true);
+  };
+  
   const handleStartAssistant = () => {
     setAssistantStarted(true);
   };
@@ -106,12 +129,21 @@ export default function ToolsPage() {
   };
 
   const handleResourceGeneration = (data: ResourceData) => {
+    console.log('handleResourceGeneration called with:', data);
     setResourceData(data);
-    setResourcesStarted(true); // Ensure resources component is shown
-    setActiveTab("resources"); // Switch to resources tab
+    setDiagramStarted(true); // Automatically start the diagram builder after resources
+    setActiveTab("diagram"); // Switch to diagram tab
+  };
+  
+  const handleDiagramData = (data: AssistantData) => {
+    console.log('handleDiagramData called with:', data);
+    setAssistantData(data);
+    setAssistantStarted(true); // Start the assistant after diagram
+    setActiveTab("assistant"); // Switch to assistant tab
   };
 
   const handleProjectAssistant = (data: any) => {
+    console.log('handleProjectAssistant called with:', data);
     setAssistantData({
       topic: data.topic,
       specificGoals: data.specificGoals,
@@ -163,10 +195,11 @@ export default function ToolsPage() {
 
       <div className="bg-white rounded-lg shadow-sm border">
         <Tabs value={activeTab} onValueChange={handleTabChange}>
-          <TabsList className="grid grid-cols-4 p-0 bg-gray-50 border-b rounded-t-lg">
+          <TabsList className="grid grid-cols-5 p-0 bg-gray-50 border-b rounded-t-lg">
             <TabsTrigger value="ideation" className="py-3 rounded-none data-[state=active]:bg-white">Project Ideation</TabsTrigger>
             <TabsTrigger value="planner" className="py-3 rounded-none data-[state=active]:bg-white">Project Planner</TabsTrigger>
             <TabsTrigger value="resources" className="py-3 rounded-none data-[state=active]:bg-white">Resource Suggestions</TabsTrigger>
+            <TabsTrigger value="diagram" className="py-3 rounded-none data-[state=active]:bg-white">Diagram Builder</TabsTrigger>
             <TabsTrigger value="assistant" className="py-3 rounded-none data-[state=active]:bg-white">Project Assistant</TabsTrigger>
           </TabsList>
 
@@ -258,6 +291,36 @@ export default function ToolsPage() {
                     projectDomain: project.domain
                   }} 
                   onProjectAssistant={handleProjectAssistant} 
+                />
+              )}
+            </TabsContent>
+            
+            <TabsContent value="diagram" className="mt-0">
+              {!diagramStarted ? (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Project Diagram Builder</CardTitle>
+                    <CardDescription>
+                      Create Business Model Canvas and other project diagrams
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p>Visualize your project using interactive diagrams and frameworks like Business Model Canvas.</p>
+                    <div className="mt-4">
+                      <Button 
+                        className="bg-pink-600 hover:bg-pink-700 text-white"
+                        onClick={handleStartDiagram}
+                      >
+                        Start Building Diagrams
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <DiagramBuilder 
+                  diagramData={diagramData}
+                  projectData={projectData}
+                  onAssistantData={handleDiagramData} 
                 />
               )}
             </TabsContent>

@@ -51,14 +51,14 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-neutral-950">
+    <div className="min-h-screen bg-gray-50 dark:bg-neutral-950 flex items-center justify-center">
       <div className="container mx-auto py-12 px-4 max-w-6xl">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-rose-500 mb-4">
-            Teaching Apps Project Helper
+            Project Helper
           </h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Create, manage and get AI assistance for your educational projects
+            Create, manage and get AI assistance for your projects
           </p>
         </div>
 

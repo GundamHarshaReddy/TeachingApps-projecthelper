@@ -150,7 +150,15 @@ export default function ResourceSuggestions({
     try {
       setLoading(true);
       setError("");
+      
+      console.log('ResourceSuggestions: Continuing to Diagram Builder with:', {
+        projectName: topic,
+        projectDescription: specificGoals,
+        grade,
+        projectDomain,
+      });
 
+      // Send resource data to diagram builder
       onProjectAssistant({
         topic,
         specificGoals,
@@ -160,9 +168,9 @@ export default function ResourceSuggestions({
         resources,
       });
     } catch (error) {
-      console.error("Error navigating to assistant:", error);
+      console.error("Error navigating to diagram builder:", error);
       setError(
-        `Failed to navigate to assistant. Error: ${error instanceof Error ? error.message : "Unknown error"}`
+        `Failed to navigate to diagram builder. Error: ${error instanceof Error ? error.message : "Unknown error"}`
       );
     } finally {
       setLoading(false);
@@ -333,8 +341,9 @@ export default function ResourceSuggestions({
               <Button
                 onClick={handleProjectAssistant}
                 disabled={loading || resources.length === 0}
+                className="bg-pink-600 hover:bg-pink-700 text-white"
               >
-                {loading ? "Creating Project..." : "Get Assistance"}
+                {loading ? "Loading..." : "Continue to Diagram Builder"}
               </Button>
               <Button
                 onClick={handleSaveResources}
