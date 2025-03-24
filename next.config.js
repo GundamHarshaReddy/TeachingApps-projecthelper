@@ -1,8 +1,15 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
-  /* config options here */
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   reactStrictMode: true,
+  // If you need custom webpack config
+  webpack: (config) => {
+    // Add aliases to webpack config
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@': require('path').resolve(__dirname, 'src')
+    };
+    return config;
+  },
   // Add compiler options to suppress the hydration errors
   compiler: {
     // Recommended for hydration errors in production
@@ -15,4 +22,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+module.exports = nextConfig;
