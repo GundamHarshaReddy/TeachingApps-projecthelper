@@ -8,18 +8,14 @@ import { generateChatResponse } from "../actions/ai";
 import ReactMarkdown from "react-markdown";
 import { Alert, AlertDescription } from "../components/ui/alert";
 import { AlertCircle } from "lucide-react";
-import type { Message } from "../types";
-
-interface AssistantData {
-  topic: string;
-  specificGoals: string;
-  timeAvailable: string;
-}
+import type { Message, ProjectData, AssistantDataFromPage as ToolContextData } from "../types";
 
 export default function ProblemSolver({
-  assistantData,
+  projectData,
+  toolContext,
 }: {
-  assistantData?: AssistantData;
+  projectData: ProjectData | null;
+  toolContext?: ToolContextData | null;
 }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -34,25 +30,43 @@ export default function ProblemSolver({
   }, []);
 
   useEffect(() => {
-    if (assistantData) {
+    if (projectData && messages.length === 0) {
       setMessages([
         {
-          id: Date.now().toString(),
+          id: `init-${Date.now()}`,
           role: "assistant",
-          content: `Hello! I'm your project assistant for the project about ${assistantData.topic}. Your specific learning goals are: ${assistantData.specificGoals}. You have ${assistantData.timeAvailable} available for this project. How can I help you get started?`,
+          content: `Hello! I'm your project assistant for "${projectData.projectName || 'your project'}" (Grade: ${projectData.grade || 'N/A'}, Domain: ${projectData.projectDomain || 'N/A'}). How can I help you plan or review your work?`,
         },
       ]);
-    } else {
+    } else if (!projectData && messages.length === 0) {
       setMessages([
         {
-          id: Date.now().toString(),
+          id: `init-generic-${Date.now()}`,
           role: "assistant",
-          content:
-            "Hello! I'm your project assistant. How can I help you today?",
+          content: "Hello! I'm your project assistant. Loading project details...",
         },
       ]);
     }
-  }, [assistantData]);
+  }, [projectData]);
+
+  useEffect(() => {
+    if (toolContext) {
+      let contextMessageContent = "Received new context from a tool.";
+      if (toolContext.nodes && toolContext.nodes.length > 0) {
+        contextMessageContent = `Okay, I see the diagram you've shared with ${toolContext.nodes.length} elements. What would you like to discuss about it?`;
+      }
+      if (messages.length > 0 && messages[messages.length - 1].content !== contextMessageContent) {
+        setMessages(prevMessages => [
+          ...prevMessages,
+          {
+            id: `context-${Date.now()}`,
+            role: "assistant",
+            content: contextMessageContent,
+          },
+        ]);
+      }
+    }
+  }, [toolContext]);
 
   const handleSendMessage = async (messageContent: string) => {
     if (!messageContent.trim()) return;

@@ -66,3 +66,81 @@
 .prose h1 {
   @apply text-3xl font-bold mb-8 text-center;
 }
+
+/* Add dark theme styles */
+.dark-theme {
+  background-color: #1A202C;
+  color: #E2E8F0;
+}
+
+.dark-theme .react-flow__node {
+  background-color: #2D3748;
+  color: #E2E8F0;
+  border-color: #4A5568;
+}
+
+.dark-theme .react-flow__controls {
+  background-color: #2D3748;
+  border-color: #4A5568;
+}
+
+.dark-theme .react-flow__controls button {
+  background-color: #4A5568;
+  color: #E2E8F0;
+  border-color: #718096;
+}
+
+.dark-theme .react-flow__minimap {
+  background-color: #2D3748;
+}
+
+/* Add node transition animations */
+.react-flow__node {
+  transition: all 0.3s ease;
+}
+
+/* Add snap grid styling */
+.react-flow__grid {
+  transition: opacity 0.3s ease;
+}
+
+.react-flow__grid.snap-enabled {
+  opacity: 0.8;
+}
+
+/* Add custom node themes */
+.node-theme-success {
+  background-color: #d1fae5 !important;
+  border-color: #059669 !important;
+}
+
+.node-theme-warning {
+  background-color: #fef3c7 !important;
+  border-color: #d97706 !important;
+}
+
+.node-theme-info {
+  background-color: #dbeafe !important;
+  border-color: #3b82f6 !important;
+}
+
+/* Add accessibility focus styles */
+.react-flow__node:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Add keyboard navigation indicator */
+.react-flow__node[data-keyboard-focused="true"] {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+}
+
+/* Enhanced edge animations */
+.react-flow__edge-path {
+  transition: stroke-width 0.2s ease, stroke 0.2s ease;
+}
+
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke-width: 3;
+  stroke: #3b82f6;
+}

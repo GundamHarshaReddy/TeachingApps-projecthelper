@@ -62,18 +62,68 @@ export interface AssistantData {
 }
 
 export interface DiagramData {
-  diagramType: string;
-  projectName: string;
-  projectDescription: string;
-  grade: string;
-  projectDomain: string;
-  projectId?: string | null;
-  nodes: any[];
-  edges: any[];
+  id?: string;
+  project_id?: string;
+  projectId?: string;
+  name?: string;
+  diagramType?: string;
+  diagram_type?: string;
+  nodes?: any[];
+  edges?: any[];
+  createdAt?: string;
+  updatedAt?: string;
+  projectName?: string;
+  projectDescription?: string;
+  grade?: string;
+  projectDomain?: string;
 }
 
 export interface DiagramBuilderProps {
   diagramData?: DiagramData;
   projectData?: ProjectData | null;
   onAssistantData: (data: AssistantData) => void;
+}
+
+export interface CanvasTemplate {
+  id: string;
+  name: string;
+  description: string;
+  type: 'business-model-canvas' | 'lean-canvas';
+  industry?: string;
+  stage?: string;
+  sections: CanvasSection[];
+  example?: boolean;
+  preFilledData?: Record<string, string>;
+}
+
+export interface CanvasSection {
+  id: string;
+  label: string;
+  position: { x: number, y: number };
+  width?: number;
+  height?: number;
+  description?: string;
+  color?: string;
+  icon?: string;
+}
+
+export interface CommentData {
+  id: string;
+  nodeId: string;
+  userId: string;
+  userName: string;
+  text: string;
+  createdAt: string;
+  resolved?: boolean;
+}
+
+export interface DiagramVersion {
+  id: string;
+  diagramId: string;
+  versionNumber: number;
+  nodes: any[];
+  edges: any[];
+  createdAt: string;
+  createdBy: string;
+  description?: string;
 }

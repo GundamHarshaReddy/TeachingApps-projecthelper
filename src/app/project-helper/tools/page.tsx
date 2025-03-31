@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { getProjectById } from "../actions/projects";
-import { getDiagramByProjectId } from "../actions/diagrams";
+import { getDiagramByProjectId, getDiagramHistoryByProjectId, getDiagramById, saveDiagram } from "../actions/diagrams";
+import { getIdeationHistoryByProjectId, getIdeationById } from "../actions/ideation";
+import { getPlannerHistoryByProjectId, getPlannerById } from "../actions/planners";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -12,9 +14,11 @@ import ProjectNavbar from "../components/ProjectNavbar";
 import ProjectIdeation from "../components/ProjectIdeation";
 import ProjectPlanner from "../components/ProjectPlanner";
 import ResourceSuggestions from "../components/ResourceSuggestions";
-import DiagramBuilder from "../components/DiagramBuilder";
+import { DiagramBuilder } from "../components/diagram-builder";
 import ProblemSolver from "../components/ProblemSolver";
 import type { ProjectData, ResourceData, AssistantData, DiagramData } from "../types";
+import { AssistantDataFromPage } from "../components/diagram-builder/types";
+import { Node, Edge } from "reactflow";
 
 interface Project {
   id: string;
@@ -24,6 +28,9 @@ interface Project {
   description: string;
   created_at: string;
 }
+
+// Add new type for diagram template selection
+type DiagramTemplate = 'blank' | 'flowchart' | 'mindmap' | 'businessCanvas' | 'leanCanvas';
 
 export default function ToolsPage() {
   const searchParams = useSearchParams();
@@ -41,11 +48,67 @@ export default function ToolsPage() {
   const [diagramStarted, setDiagramStarted] = useState(false);
   const [assistantStarted, setAssistantStarted] = useState(false);
   
+  // Add new state for selected diagram template
+  const [selectedDiagramTemplate, setSelectedDiagramTemplate] = useState<DiagramTemplate | null>(null);
+  
   // States for data passing between components
   const [projectData, setProjectData] = useState<ProjectData | null>(null);
   const [resourceData, setResourceData] = useState<ResourceData | undefined>();
-  const [diagramData, setDiagramData] = useState<DiagramData | undefined>();
-  const [assistantData, setAssistantData] = useState<AssistantData | undefined>();
+  const [diagramData, setDiagramData] = useState<{
+    id?: string;
+    name?: string;
+    diagramType?: string;
+    projectName?: string;
+    projectDescription?: string;
+    grade?: string;
+    projectDomain?: string;
+    projectId?: string;
+    nodes: Node[];
+    edges: Edge[];
+  } | undefined>();
+  const [toolContextData, setToolContextData] = useState<AssistantData | undefined | null>();
+
+  // Add a function to fetch diagram history
+  interface DiagramHistoryItem {
+    id: string;
+    name: string;
+    diagramType?: string;
+    createdAt: string;
+    lastModified: string;
+    previewImage?: string;
+    description?: string;
+  }
+  
+  const [diagramHistory, setDiagramHistory] = useState<DiagramHistoryItem[]>([]);
+  const [loadingDiagramHistory, setLoadingDiagramHistory] = useState(false);
+
+  // Add state for ideation history
+  interface IdeationHistoryItem {
+    id: string;
+    name: string;
+    subject?: string;
+    projectDomain?: string;
+    createdAt: string;
+    lastModified: string;
+    preview?: string;
+  }
+  
+  const [ideationHistory, setIdeationHistory] = useState<IdeationHistoryItem[]>([]);
+  const [loadingIdeationHistory, setLoadingIdeationHistory] = useState(false);
+  
+  // Add state for planner history
+  interface PlannerHistoryItem {
+    id: string;
+    name: string;
+    projectName?: string;
+    projectDomain?: string;
+    createdAt: string;
+    lastModified: string;
+    preview?: string;
+  }
+  
+  const [plannerHistory, setPlannerHistory] = useState<PlannerHistoryItem[]>([]);
+  const [loadingPlannerHistory, setLoadingPlannerHistory] = useState(false);
 
   useEffect(() => {
     async function fetchProject() {
@@ -79,8 +142,8 @@ export default function ToolsPage() {
             grade: projectData.grade,
             projectDomain: projectData.domain,
             projectId: projectId,
-            nodes: diagram.nodes,
-            edges: diagram.edges
+            nodes: diagram.nodes || [],
+            edges: diagram.edges || []
           });
         }
         
@@ -98,6 +161,13 @@ export default function ToolsPage() {
   // Handle tab changes
   const handleTabChange = (value: string) => {
     setActiveTab(value);
+    
+    // Remove the auto-start behavior for diagram tab
+    // if (value === "diagram") {
+    //   setDiagramStarted(true);
+    // }
+    
+    console.log("Tab changed to:", value);
   };
 
   // Handle starting different tool processes
@@ -131,29 +201,229 @@ export default function ToolsPage() {
   const handleResourceGeneration = (data: ResourceData) => {
     console.log('handleResourceGeneration called with:', data);
     setResourceData(data);
-    setDiagramStarted(true); // Automatically start the diagram builder after resources
-    setActiveTab("diagram"); // Switch to diagram tab
+    // Remove auto-start behavior - don't automatically start diagram builder
+    // setDiagramStarted(true);
+    setActiveTab("diagram"); // Still switch to diagram tab
   };
   
-  const handleDiagramData = (data: AssistantData) => {
-    console.log('handleDiagramData called with:', data);
-    setAssistantData(data);
-    setAssistantStarted(true); // Start the assistant after diagram
-    setActiveTab("assistant"); // Switch to assistant tab
+  // Update fetchDiagramHistory to use the database function
+  const fetchDiagramHistory = useCallback(async () => {
+    if (!projectId) return;
+    
+    setLoadingDiagramHistory(true);
+    try {
+      // Call the server action to get diagram history from database
+      const historyData = await getDiagramHistoryByProjectId(projectId);
+      setDiagramHistory(historyData);
+    } catch (error) {
+      console.error("Error fetching diagram history:", error);
+    } finally {
+      setLoadingDiagramHistory(false);
+    }
+  }, [projectId]);
+  
+  // Fetch diagram history when the tab changes to diagram
+  useEffect(() => {
+    if (activeTab === "diagram" && !diagramStarted) {
+      fetchDiagramHistory();
+    }
+  }, [activeTab, diagramStarted, fetchDiagramHistory]);
+
+  // Add template selection handler
+  const handleSelectDiagramTemplate = (template: DiagramTemplate) => {
+    console.log(`Selected diagram template: ${template}`);
+    setSelectedDiagramTemplate(template);
+    setDiagramStarted(true);
   };
 
-  const handleProjectAssistant = (data: any) => {
-    console.log('handleProjectAssistant called with:', data);
-    setAssistantData({
+  // Function to load a specific diagram from history
+  const handleLoadDiagram = async (diagramId: string) => {
+    console.log(`Loading diagram with ID: ${diagramId}`);
+    try {
+      const diagramData = await getDiagramById(diagramId);
+      if (diagramData) {
+        setDiagramData({
+          diagramType: diagramData.diagramType,
+          projectName: projectData?.projectName || project?.name || "",
+          projectDescription: projectData?.projectDescription || project?.description || "",
+          grade: projectData?.grade || project?.grade || "",
+          projectDomain: projectData?.projectDomain || project?.domain || "",
+          projectId: projectId || undefined, // Convert null to undefined
+          nodes: diagramData.nodes || [],
+          edges: diagramData.edges || []
+        });
+        setDiagramStarted(true);
+      }
+    } catch (error) {
+      console.error("Error loading diagram:", error);
+      // Fallback: start a new diagram if loading fails
+      setDiagramStarted(true);
+    }
+  };
+  
+  // Simplify diagram creation by providing a single button to create a canvas
+  const handleCreateCanvas = () => {
+    console.log("Creating new project canvas");
+    // Reset any existing diagram data
+    setDiagramData({
+      diagramType: "canvas",
+      projectName: projectData?.projectName || project?.name || "",
+      projectDescription: projectData?.projectDescription || project?.description || "",
+      grade: projectData?.grade || project?.grade || "",
+      projectDomain: projectData?.projectDomain || project?.domain || "",
+      projectId: projectId || undefined, // Convert null to undefined
+      nodes: [],
+      edges: []
+    });
+    setSelectedDiagramTemplate(null);
+    setDiagramStarted(true);
+  };
+
+  // Update handler
+  const handleToolContextData = (data: AssistantDataFromPage) => {
+    console.log('handleToolContextData called with:', data);
+    
+    // Convert AssistantDataFromPage to AssistantData for our ProblemSolver
+    const assistantData: AssistantData = {
       topic: data.topic,
-      specificGoals: data.specificGoals,
+      specificGoals: Array.isArray(data.specificGoals) ? data.specificGoals.join(", ") : data.specificGoals,
       timeAvailable: data.timeAvailable,
       grade: data.grade,
       projectDomain: data.projectDomain,
-      projectId: project?.id || null
-    });
+      projectId: data.projectId || null
+    };
+    
+    setToolContextData(assistantData);
+    setAssistantStarted(true);
+    setActiveTab("assistant");
+  };
+
+  const handleProjectAssistant = (data: any) => {
+    console.warn('handleProjectAssistant called - consider integrating with handleToolContextData if providing context:', data);
     setAssistantStarted(true); // Ensure assistant component is shown
     setActiveTab("assistant"); // Switch to assistant tab
+  };
+
+  // Handle diagram save
+  const handleSaveDiagram = async (data: any) => {
+    console.log('Saving diagram:', data);
+    try {
+      // Prepare data for saving
+      const saveData = {
+        id: diagramData?.id, // Use existing ID if present (update) or undefined for new
+        name: data.name || `Project Diagram ${new Date().toLocaleDateString()}`,
+        diagramType: data.diagramType || diagramData?.diagramType || 'custom',
+        nodes: data.nodes,
+        edges: data.edges,
+        projectId: projectId || undefined, // Convert null to undefined
+        description: data.description || '',
+        // Generate thumbnail if possible (in a real app you'd create an actual thumbnail)
+        thumbnail: '/project-helper/diagram-preview-placeholder.png'
+      };
+      
+      // Call the server action to save diagram
+      const result = await saveDiagram(saveData);
+      
+      if (result.success) {
+        // Update the diagramData state with saved info
+        setDiagramData(prevData => {
+          if (!prevData) return undefined;
+          
+          return {
+            ...prevData,
+            id: result.id,
+            name: result.name
+          };
+        });
+        
+        // Refresh diagram history to include this new/updated diagram
+        fetchDiagramHistory();
+        
+        // Show success message (in a production app, use a toast notification)
+        console.log('Diagram saved successfully:', result.message);
+      } else {
+        console.error('Failed to save diagram:', result.message);
+      }
+    } catch (error) {
+      console.error('Error saving diagram:', error);
+    }
+  };
+
+  // Add function to fetch ideation history
+  const fetchIdeationHistory = useCallback(async () => {
+    if (!projectId) return;
+    
+    setLoadingIdeationHistory(true);
+    try {
+      // Call the server action to get ideation history from database
+      const historyData = await getIdeationHistoryByProjectId(projectId);
+      setIdeationHistory(historyData);
+    } catch (error) {
+      console.error("Error fetching ideation history:", error);
+    } finally {
+      setLoadingIdeationHistory(false);
+    }
+  }, [projectId]);
+  
+  // Add function to fetch planner history
+  const fetchPlannerHistory = useCallback(async () => {
+    if (!projectId) return;
+    
+    setLoadingPlannerHistory(true);
+    try {
+      // Call the server action to get planner history from database
+      const historyData = await getPlannerHistoryByProjectId(projectId);
+      setPlannerHistory(historyData);
+    } catch (error) {
+      console.error("Error fetching planner history:", error);
+    } finally {
+      setLoadingPlannerHistory(false);
+    }
+  }, [projectId]);
+  
+  // Fetch history when tabs change
+  useEffect(() => {
+    if (activeTab === "ideation" && !ideationStarted) {
+      fetchIdeationHistory();
+    } else if (activeTab === "planner" && !plannerStarted) {
+      fetchPlannerHistory();
+    } else if (activeTab === "diagram" && !diagramStarted) {
+      fetchDiagramHistory();
+    }
+  }, [activeTab, ideationStarted, plannerStarted, diagramStarted, fetchIdeationHistory, fetchPlannerHistory, fetchDiagramHistory]);
+  
+  // Function to load a specific ideation from history
+  const handleLoadIdeation = async (ideationId: string) => {
+    console.log(`Loading ideation with ID: ${ideationId}`);
+    try {
+      // Simply set the flag to start ideation and let the component handle loading
+      setIdeationStarted(true);
+      // Store the ID in the URL, which can be accessed by the components
+      const searchParams = new URLSearchParams(window.location.search);
+      searchParams.set('ideationId', ideationId);
+      const newUrl = `${window.location.pathname}?${searchParams.toString()}`;
+      window.history.pushState({}, '', newUrl);
+    } catch (error) {
+      console.error("Error loading ideation:", error);
+      setIdeationStarted(true);
+    }
+  };
+  
+  // Function to load a specific planner from history
+  const handleLoadPlanner = async (plannerId: string) => {
+    console.log(`Loading planner with ID: ${plannerId}`);
+    try {
+      // Simply set the flag to start planner and let the component handle loading
+      setPlannerStarted(true);
+      // Store the ID in the URL, which can be accessed by the components
+      const searchParams = new URLSearchParams(window.location.search);
+      searchParams.set('plannerId', plannerId);
+      const newUrl = `${window.location.pathname}?${searchParams.toString()}`;
+      window.history.pushState({}, '', newUrl);
+    } catch (error) {
+      console.error("Error loading planner:", error);
+      setPlannerStarted(true);
+    }
   };
 
   if (loading) {
@@ -214,7 +484,40 @@ export default function ToolsPage() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <p>Enter details about your project idea to get suggestions and guidance.</p>
+                    {/* Previous Ideations Section */}
+                    {ideationHistory.length > 0 && (
+                      <div className="mb-8">
+                        <h3 className="text-base font-medium mb-4">Previous Ideations</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {ideationHistory.map(ideation => (
+                            <div 
+                              key={ideation.id}
+                              className="border rounded-lg overflow-hidden hover:border-pink-300 transition-colors cursor-pointer"
+                              onClick={() => handleLoadIdeation(ideation.id)}
+                            >
+                              <div className="p-3">
+                                <div className="font-medium text-sm">{ideation.name}</div>
+                                <div className="text-xs text-gray-500 mb-2">Last modified: {new Date(ideation.lastModified).toLocaleDateString()}</div>
+                                <div className="text-xs line-clamp-3 text-gray-600">{ideation.preview}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {loadingIdeationHistory ? (
+                      <div className="text-center py-4">
+                        <p>Loading ideation history...</p>
+                      </div>
+                    ) : ideationHistory.length === 0 && (
+                      <div className="bg-gray-50 rounded-lg p-4 text-center mb-8">
+                        <p className="text-gray-600 mb-2">No previous ideations found</p>
+                        <p className="text-sm text-gray-500">Start creating your first project idea</p>
+                      </div>
+                    )}
+                    
+                    <p className="mt-4">Enter details about your project idea to get suggestions and guidance.</p>
                     <div className="mt-4">
                       <Button 
                         className="bg-pink-600 hover:bg-pink-700 text-white"
@@ -227,7 +530,8 @@ export default function ToolsPage() {
                 </Card>
               ) : (
                 <ProjectIdeation 
-                  onProjectDataGenerated={handleProjectDataGenerated} 
+                  onProjectDataGenerated={handleProjectDataGenerated}
+                  projectId={projectId}
                 />
               )}
             </TabsContent>
@@ -242,7 +546,40 @@ export default function ToolsPage() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <p>Create detailed plans for your project with step-by-step guidance.</p>
+                    {/* Previous Planners Section */}
+                    {plannerHistory.length > 0 && (
+                      <div className="mb-8">
+                        <h3 className="text-base font-medium mb-4">Previous Plans</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {plannerHistory.map(planner => (
+                            <div 
+                              key={planner.id}
+                              className="border rounded-lg overflow-hidden hover:border-pink-300 transition-colors cursor-pointer"
+                              onClick={() => handleLoadPlanner(planner.id)}
+                            >
+                              <div className="p-3">
+                                <div className="font-medium text-sm">{planner.name}</div>
+                                <div className="text-xs text-gray-500 mb-2">Last modified: {new Date(planner.lastModified).toLocaleDateString()}</div>
+                                <div className="text-xs line-clamp-3 text-gray-600">{planner.preview}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {loadingPlannerHistory ? (
+                      <div className="text-center py-4">
+                        <p>Loading plan history...</p>
+                      </div>
+                    ) : plannerHistory.length === 0 && (
+                      <div className="bg-gray-50 rounded-lg p-4 text-center mb-8">
+                        <p className="text-gray-600 mb-2">No previous plans found</p>
+                        <p className="text-sm text-gray-500">Start creating your first project plan</p>
+                      </div>
+                    )}
+                    
+                    <p className="mt-4">Create detailed plans for your project with step-by-step guidance.</p>
                     <div className="mt-4">
                       <Button 
                         className="bg-pink-600 hover:bg-pink-700 text-white"
@@ -256,7 +593,7 @@ export default function ToolsPage() {
               ) : (
                 <ProjectPlanner 
                   projectData={projectData} 
-                  onResourceGeneration={handleResourceGeneration} 
+                  onResourceGeneration={handleResourceGeneration}
                 />
               )}
             </TabsContent>
@@ -301,27 +638,107 @@ export default function ToolsPage() {
                   <CardHeader>
                     <CardTitle>Project Diagram Builder</CardTitle>
                     <CardDescription>
-                      Create Business Model Canvas and other project diagrams
+                      Create visual diagrams for your project structure
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <p>Visualize your project using interactive diagrams and frameworks like Business Model Canvas.</p>
-                    <div className="mt-4">
+                    {/* Previous Diagrams Section */}
+                    {diagramHistory.length > 0 && (
+                      <div className="mb-8">
+                        <h3 className="text-base font-medium mb-4">Previous Diagrams</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {diagramHistory.map(diagram => (
+                            <div 
+                              key={diagram.id}
+                              className="border rounded-lg overflow-hidden hover:border-pink-300 transition-colors cursor-pointer"
+                              onClick={() => handleLoadDiagram(diagram.id)}
+                            >
+                              {diagram.previewImage ? (
+                                <div className="h-32 bg-gray-100 flex items-center justify-center">
+                                  <img 
+                                    src={diagram.previewImage} 
+                                    alt={`Preview of ${diagram.name}`}
+                                    className="max-h-full max-w-full object-contain"
+                                  />
+                                </div>
+                              ) : (
+                                <div className="h-32 bg-gray-100 flex items-center justify-center text-gray-400">
+                                  No preview available
+                                </div>
+                              )}
+                              <div className="p-3">
+                                <div className="font-medium text-sm">{diagram.name}</div>
+                                <div className="text-xs text-gray-500">Last modified: {new Date(diagram.lastModified).toLocaleDateString()}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {loadingDiagramHistory ? (
+                      <div className="text-center py-4">
+                        <p>Loading diagram history...</p>
+                      </div>
+                    ) : diagramHistory.length === 0 && (
+                      <div className="bg-gray-50 rounded-lg p-4 text-center mb-8">
+                        <p className="text-gray-600 mb-2">No previous diagrams found</p>
+                        <p className="text-sm text-gray-500">Start creating your first diagram</p>
+                      </div>
+                    )}
+                    
+                    {/* Simplified Create New Diagram Section */}
+                    <div className="mt-6 text-center">
                       <Button 
-                        className="bg-pink-600 hover:bg-pink-700 text-white"
-                        onClick={handleStartDiagram}
+                        className="bg-pink-600 hover:bg-pink-700 text-white px-8 py-6 text-lg"
+                        onClick={handleCreateCanvas}
                       >
-                        Start Building Diagrams
+                        Build Your Project Canvas
                       </Button>
                     </div>
                   </CardContent>
                 </Card>
               ) : (
-                <DiagramBuilder 
-                  diagramData={diagramData}
-                  projectData={projectData}
-                  onAssistantData={handleDiagramData} 
-                />
+                <Card className="h-[700px]">
+                  <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <div>
+                      <CardTitle>Project Diagram Builder</CardTitle>
+                      {selectedDiagramTemplate && selectedDiagramTemplate !== 'blank' && (
+                        <CardDescription>
+                          {selectedDiagramTemplate === 'businessCanvas' && 'Business Model Canvas'} 
+                          {selectedDiagramTemplate === 'leanCanvas' && 'Lean Canvas'}
+                          {selectedDiagramTemplate === 'flowchart' && 'Flow Chart'}
+                          {selectedDiagramTemplate === 'mindmap' && 'Mind Map'}
+                        </CardDescription>
+                      )}
+                    </div>
+                    
+                    {/* Add Back Button */}
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setDiagramStarted(false)}
+                      className="text-sm"
+                    >
+                      Back to Diagrams
+                    </Button>
+                  </CardHeader>
+                  <CardContent className="h-[650px] flex flex-col">
+                    <DiagramBuilder 
+                      diagramData={diagramData}
+                      projectData={projectData}
+                      onAssistantData={handleToolContextData}
+                      // Add the save handler
+                      onSave={handleSaveDiagram}
+                      // Only pass valid template types (not 'blank' or null)
+                      templateType={
+                        selectedDiagramTemplate !== null && 
+                        selectedDiagramTemplate !== 'blank' ? 
+                        selectedDiagramTemplate : undefined
+                      }
+                    />
+                  </CardContent>
+                </Card>
               )}
             </TabsContent>
 
@@ -348,14 +765,8 @@ export default function ToolsPage() {
                 </Card>
               ) : (
                 <ProblemSolver 
-                  assistantData={assistantData || {
-                    topic: project.name,
-                    specificGoals: project.description,
-                    timeAvailable: "unknown",
-                    grade: project.grade,
-                    projectDomain: project.domain,
-                    projectId: project.id
-                  }} 
+                  projectData={projectData}
+                  toolContext={toolContextData}
                 />
               )}
             </TabsContent>
@@ -364,4 +775,4 @@ export default function ToolsPage() {
       </div>
     </div>
   );
-} 
+}

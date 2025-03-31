@@ -9,6 +9,7 @@ import { Card, CardContent } from "../components/ui/card";
 import { ScrollArea } from "../components/ui/scroll-area";
 import { generateProjectPlan, modifyProjectPlan } from "../actions/ai";
 import { saveText } from "../actions/database";
+import { savePlanner, getPlannerById } from "../actions/planners";
 import ReactMarkdown from "react-markdown";
 import PdfDownloadButton from "./PdfDownloadButton";
 import {
@@ -21,6 +22,7 @@ import {
 import { Alert, AlertDescription } from "../components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import type { ProjectPlannerProps, ProjectData, ResourceData } from "../types";
+import { useSearchParams } from "next/navigation";
 
 function getOrdinalSuffix(num: number): string {
   const j = num % 10;
@@ -42,10 +44,74 @@ type Message = {
   content: string;
 };
 
+// SaveDialog component for naming planners
+interface SaveDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (name: string, description: string) => void;
+  initialName?: string;
+  projectName?: string;
+}
+
+const SaveDialog = ({ isOpen, onClose, onSave, initialName = "", projectName = "" }: SaveDialogProps) => {
+  const [name, setName] = useState(initialName || "");
+  const [description, setDescription] = useState("");
+
+  useEffect(() => {
+    if (isOpen && !name) {
+      setName(`${projectName || 'Project'} Plan - ${new Date().toLocaleDateString()}`);
+    }
+  }, [isOpen, name, projectName]);
+
+  return (
+    <div className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 ${isOpen ? '' : 'hidden'}`}>
+      <div className="bg-white rounded-lg p-6 w-full max-w-md">
+        <h3 className="text-lg font-medium mb-4">Save Project Plan</h3>
+        <p className="text-sm text-gray-500 mb-4">
+          Give your project plan a name to help identify it later.
+        </p>
+        
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="plan-name">Name</Label>
+            <Input
+              id="plan-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full"
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="plan-desc">Notes (optional)</Label>
+            <Textarea
+              id="plan-desc"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full"
+              placeholder="Add any additional notes about this plan"
+            />
+          </div>
+        </div>
+        
+        <div className="flex justify-end space-x-2 mt-6">
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={() => onSave(name, description)}>
+            Save Plan
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function ProjectPlanner({
   projectData,
   onResourceGeneration,
 }: ProjectPlannerProps) {
+  const searchParams = useSearchParams();
   const [projectName, setProjectName] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
   const [duration, setDuration] = useState("");
@@ -59,9 +125,44 @@ export default function ProjectPlanner({
   const [saveError, setSaveError] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [editedProjectTimeline, setEditedProjectTimeline] = useState("");
+  // Add new state for save dialog
+  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
+  const [savedPlannerId, setSavedPlannerId] = useState<string | undefined>();
+  const [savedPlannerName, setSavedPlannerName] = useState<string>("");
 
   useEffect(() => {
-    if (projectData) {
+    async function loadPlannerFromId() {
+      const plannerId = searchParams.get("plannerId");
+      if (plannerId) {
+        try {
+          setLoading(true);
+          const plannerData = await getPlannerById(plannerId);
+          if (plannerData) {
+            // Load planner data into the form
+            setProjectName(plannerData.projectName || "");
+            setProjectDescription(plannerData.projectDescription || "");
+            setDuration(plannerData.duration || "");
+            setGrade(plannerData.grade || "");
+            setProjectDomain(plannerData.projectDomain || "technical");
+            setProjectTimeline(plannerData.projectTimeline || "");
+            setSavedPlannerId(plannerData.id);
+            setSavedPlannerName(plannerData.name || "");
+            
+            if (plannerData.projectTimeline) {
+              setMessages([{ role: "assistant", content: plannerData.projectTimeline }]);
+            }
+          }
+        } catch (error) {
+          console.error("Error loading planner:", error);
+          setError("Failed to load the saved plan. Starting with project data.");
+        } finally {
+          setLoading(false);
+        }
+      }
+    }
+    
+    // If no planner ID in URL, but we have project data, use that
+    if (!searchParams.get("plannerId") && projectData) {
       setProjectName(projectData.projectName);
       setProjectDescription(projectData.projectDescription);
       setDuration(projectData.duration);
@@ -73,8 +174,10 @@ export default function ProjectPlanner({
         projectData.grade,
         projectData.projectDomain
       );
+    } else {
+      loadPlannerFromId();
     }
-  }, [projectData]);
+  }, [searchParams, projectData]);
 
   const handleGenerateTimeline = async (
     idea: string,
@@ -166,7 +269,7 @@ export default function ProjectPlanner({
       duration: `${duration} days`,
       grade,
       projectDomain,
-      projectTimeline,
+      projectTimeline
     });
   };
 
@@ -176,18 +279,53 @@ export default function ProjectPlanner({
       return;
     }
 
+    // Open the save dialog instead of saving directly
+    setIsSaveDialogOpen(true);
+  };
+
+  // Add new function to handle saving with name
+  const handleSaveWithName = async (name: string, description: string) => {
+    setIsSaveDialogOpen(false);
+    
+    if (!projectTimeline) {
+      setSaveError("No project timeline to save.");
+      return;
+    }
+    
     try {
       setLoading(true);
-      const contentToSave = `# ${projectName}\n\n${projectTimeline}`;
-      const savedText = await saveText(contentToSave);
-      setSaveError("");
-      alert(`Project timeline saved successfully! ID: ${savedText.id}`);
+      
+      // Prepare data for saving
+      const saveData = {
+        id: savedPlannerId, // For updating existing planner
+        name: name,
+        project_name: projectName,
+        project_description: projectDescription,
+        duration: duration,
+        grade: grade,
+        project_domain: projectDomain,
+        project_timeline: projectTimeline,
+        projectId: projectData?.id
+      };
+      
+      // Save to database using the new server action
+      const result = await savePlanner(saveData);
+      
+      if (result.success) {
+        setSavedPlannerId(result.id);
+        setSavedPlannerName(result.name);
+        setSaveError("");
+        // Show success message
+        alert(`Project plan saved as "${result.name}"`);
+      } else {
+        setSaveError(result.message || "Failed to save the project plan.");
+      }
     } catch (error) {
-      console.error("Error saving timeline:", error);
+      console.error("Error saving planner:", error);
       setSaveError(
         error instanceof Error
           ? error.message
-          : "Failed to save the project timeline. Please try again."
+          : "Failed to save the project plan. Please try again."
       );
     } finally {
       setLoading(false);
@@ -464,6 +602,14 @@ export default function ProjectPlanner({
           </CardContent>
         </Card>
       )}
+      {/* Add the SaveDialog component */}
+      <SaveDialog
+        isOpen={isSaveDialogOpen}
+        onClose={() => setIsSaveDialogOpen(false)}
+        onSave={handleSaveWithName}
+        initialName={savedPlannerName}
+        projectName={projectName}
+      />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -16,10 +16,13 @@ import { Card, CardContent } from "../components/ui/card";
 import { ScrollArea } from "../components/ui/scroll-area";
 import { generateProjectIdea, modifyProjectIdea } from "../actions/ai";
 import { saveText } from "../actions/database";
+import { saveIdeation } from "../actions/ideation";
 import ReactMarkdown from "react-markdown";
 import PdfDownloadButton from "./PdfDownloadButton";
 import { Alert, AlertDescription } from "../components/ui/alert";
 import { AlertCircle } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { getIdeationById } from "../actions/ideation";
 
 function getOrdinalSuffix(num: number): string {
   const j = num % 10;
@@ -41,6 +44,67 @@ type Message = {
   content: string;
 };
 
+interface SaveDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (name: string, description: string) => void;
+  initialName?: string;
+}
+
+const SaveDialog = ({ isOpen, onClose, onSave, initialName = "" }: SaveDialogProps) => {
+  const [name, setName] = useState(initialName || "");
+  const [description, setDescription] = useState("");
+
+  useEffect(() => {
+    if (isOpen && !name) {
+      setName(`Project Ideation - ${new Date().toLocaleDateString()}`);
+    }
+  }, [isOpen, name]);
+
+  return (
+    <div className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 ${isOpen ? '' : 'hidden'}`}>
+      <div className="bg-white rounded-lg p-6 w-full max-w-md">
+        <h3 className="text-lg font-medium mb-4">Save Project Ideation</h3>
+        <p className="text-sm text-gray-500 mb-4">
+          Give your ideation a name to help identify it later.
+        </p>
+        
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="ideation-name">Name</Label>
+            <Input
+              id="ideation-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full"
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="ideation-desc">Notes (optional)</Label>
+            <Textarea
+              id="ideation-desc"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full"
+              placeholder="Add any additional notes about this ideation"
+            />
+          </div>
+        </div>
+        
+        <div className="flex justify-end space-x-2 mt-6">
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={() => onSave(name, description)}>
+            Save Ideation
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 interface ProjectIdeationProps {
   onProjectDataGenerated: (data: {
     projectName: string;
@@ -49,12 +113,16 @@ interface ProjectIdeationProps {
     grade: string;
     detailedExplanation: string;
     projectDomain: string;
+    id?: string;
   }) => void;
+  projectId?: string | null;
 }
 
 export default function ProjectIdeation({
   onProjectDataGenerated,
+  projectId
 }: ProjectIdeationProps) {
+  const searchParams = useSearchParams();
   const [subject, setSubject] = useState("");
   const [interests, setInterests] = useState("");
   const [tools, setTools] = useState("");
@@ -72,6 +140,46 @@ export default function ProjectIdeation({
   const [saveError, setSaveError] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [editedProjectIdea, setEditedProjectIdea] = useState("");
+  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
+  const [savedIdeationId, setSavedIdeationId] = useState<string | undefined>();
+  const [savedIdeationName, setSavedIdeationName] = useState<string>("");
+
+  useEffect(() => {
+    async function loadIdeationFromId() {
+      const ideationId = searchParams.get("ideationId");
+      if (ideationId) {
+        try {
+          setLoading(true);
+          const ideationData = await getIdeationById(ideationId);
+          if (ideationData) {
+            setSubject(ideationData.subject || "");
+            setInterests(ideationData.interests || "");
+            setTools(ideationData.tools || "");
+            setSkillLevel(ideationData.skillLevel || "intermediate");
+            setProjectDuration(ideationData.projectDuration || "30-60");
+            setTargetAudience(ideationData.targetAudience || "");
+            setGrade(ideationData.grade || "");
+            setDetailedExplanation(ideationData.detailedExplanation || "");
+            setProjectIdea(ideationData.projectIdea || "");
+            setProjectDomain(ideationData.projectDomain || "technical");
+            setSavedIdeationId(ideationData.id);
+            setSavedIdeationName(ideationData.name || "");
+            
+            if (ideationData.projectIdea) {
+              setMessages([{ role: "assistant", content: ideationData.projectIdea }]);
+            }
+          }
+        } catch (error) {
+          console.error("Error loading ideation:", error);
+          setError("Failed to load the saved ideation. Starting with a blank form.");
+        } finally {
+          setLoading(false);
+        }
+      }
+    }
+    
+    loadIdeationFromId();
+  }, [searchParams]);
 
   const handleGenerateIdea = async () => {
     try {
@@ -137,7 +245,8 @@ export default function ProjectIdeation({
         duration: projectDuration,
         grade,
         detailedExplanation,
-        projectDomain, // Add this line to include the project domain
+        projectDomain,
+        id: savedIdeationId
       });
     }
   };
@@ -148,13 +257,48 @@ export default function ProjectIdeation({
       return;
     }
 
+    setIsSaveDialogOpen(true);
+  };
+
+  const handleSaveWithName = async (name: string, description: string) => {
+    setIsSaveDialogOpen(false);
+    
+    if (!projectIdea) {
+      setSaveError("No project idea to save.");
+      return;
+    }
+    
     try {
       setLoading(true);
-      const savedText = await saveText(projectIdea);
-      setSaveError("");
-      alert(`Project idea saved successfully! ID: ${savedText.id}`);
+      
+      const saveData = {
+        id: savedIdeationId,
+        name: name,
+        subject: subject,
+        interests: interests,
+        tools: tools,
+        skill_level: skillLevel,
+        project_duration: projectDuration,
+        target_audience: targetAudience,
+        grade: grade,
+        detailed_explanation: description || detailedExplanation,
+        project_domain: projectDomain,
+        project_idea: projectIdea,
+        projectId: projectId
+      };
+      
+      const result = await saveIdeation(saveData);
+      
+      if (result.success) {
+        setSavedIdeationId(result.id);
+        setSavedIdeationName(result.name);
+        setSaveError("");
+        alert(`Project ideation saved as "${result.name}"`);
+      } else {
+        setSaveError(result.message || "Failed to save the project idea.");
+      }
     } catch (error) {
-      console.error("Error saving text:", error);
+      console.error("Error saving ideation:", error);
       setSaveError(
         error instanceof Error
           ? error.message
@@ -371,7 +515,7 @@ export default function ProjectIdeation({
                 onClick={handleSaveText}
                 disabled={!projectIdea || loading}
               >
-                {loading ? "Saving..." : "Save Idea"}
+                {loading ? "Saving..." : "Save Ideation"}
               </Button>
               <Button onClick={handleEditToggle}>
                 {isEditing ? "Save Changes" : "Edit"}
@@ -469,6 +613,12 @@ export default function ProjectIdeation({
           </CardContent>
         </Card>
       )}
+      <SaveDialog
+        isOpen={isSaveDialogOpen}
+        onClose={() => setIsSaveDialogOpen(false)}
+        onSave={handleSaveWithName}
+        initialName={savedIdeationName}
+      />
     </div>
   );
 }
