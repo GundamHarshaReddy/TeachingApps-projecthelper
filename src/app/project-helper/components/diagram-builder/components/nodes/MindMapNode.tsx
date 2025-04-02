@@ -172,6 +172,14 @@ export const MindMapNode: React.FC<MindMapNodeProps> = ({
     );
   };
 
+  const onConnectStart = (event: React.MouseEvent) => {
+    console.log(`Starting connection from handle: ${(event.target as HTMLElement).getAttribute('id')}`);
+  };
+
+  const onConnectEnd = (event: React.MouseEvent) => {
+    console.log(`Ending connection on handle: ${(event.target as HTMLElement).getAttribute('id')}`);
+  };
+
   return (
     <div
       className={`p-4 rounded-lg border relative ${
@@ -187,17 +195,65 @@ export const MindMapNode: React.FC<MindMapNodeProps> = ({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Connection handles */}
-      <Handle type="source" position={Position.Top} id="source-top" data-handleid="source-top" data-nodeid={id} data-handlepos={Position.Top} style={{ background: '#555', width: 8, height: 8, zIndex: 20 }} isConnectable={true} />
-      <Handle type="source" position={Position.Bottom} id="source-bottom" data-handleid="source-bottom" data-nodeid={id} data-handlepos={Position.Bottom} style={{ background: '#555', width: 8, height: 8, zIndex: 20 }} isConnectable={true} />
-      <Handle type="source" position={Position.Left} id="source-left" data-handleid="source-left" data-nodeid={id} data-handlepos={Position.Left} style={{ background: '#555', width: 8, height: 8, zIndex: 20 }} isConnectable={true} />
-      <Handle type="source" position={Position.Right} id="source-right" data-handleid="source-right" data-nodeid={id} data-handlepos={Position.Right} style={{ background: '#555', width: 8, height: 8, zIndex: 20 }} isConnectable={true} />
+      {/* Bidirectional handles - can be used as both source and target */}
+      <Handle
+        type="source"
+        position={Position.Top}
+        id="handle-top"
+        style={{ background: '#6366f1', width: 10, height: 10, opacity: 0.8 }}
+        isConnectable={true}
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="handle-bottom"
+        style={{ background: '#6366f1', width: 10, height: 10, opacity: 0.8 }}
+        isConnectable={true}
+      />
+      <Handle
+        type="source"
+        position={Position.Left}
+        id="handle-left"
+        style={{ background: '#6366f1', width: 10, height: 10, opacity: 0.8 }}
+        isConnectable={true}
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="handle-right"
+        style={{ background: '#6366f1', width: 10, height: 10, opacity: 0.8 }}
+        isConnectable={true}
+      />
       
-      {/* Target handles */}
-      <Handle type="target" position={Position.Top} id="target-top" data-handleid="target-top" data-nodeid={id} data-handlepos={Position.Top} style={{ background: '#555', width: 8, height: 8, top: -4, zIndex: 20 }} isConnectable={true} />
-      <Handle type="target" position={Position.Bottom} id="target-bottom" data-handleid="target-bottom" data-nodeid={id} data-handlepos={Position.Bottom} style={{ background: '#555', width: 8, height: 8, bottom: -4, zIndex: 20 }} isConnectable={true} />
-      <Handle type="target" position={Position.Left} id="target-left" data-handleid="target-left" data-nodeid={id} data-handlepos={Position.Left} style={{ background: '#555', width: 8, height: 8, left: -4, zIndex: 20 }} isConnectable={true} />
-      <Handle type="target" position={Position.Right} id="target-right" data-handleid="target-right" data-nodeid={id} data-handlepos={Position.Right} style={{ background: '#555', width: 8, height: 8, right: -4, zIndex: 20 }} isConnectable={true} />
+      {/* Same handles but as targets */}
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="handle-top"
+        style={{ background: '#6366f1', width: 10, height: 10, opacity: 0.3 }}
+        isConnectable={true}
+      />
+      <Handle
+        type="target"
+        position={Position.Bottom}
+        id="handle-bottom"
+        style={{ background: '#6366f1', width: 10, height: 10, opacity: 0.3 }}
+        isConnectable={true}
+      />
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="handle-left"
+        style={{ background: '#6366f1', width: 10, height: 10, opacity: 0.3 }}
+        isConnectable={true}
+      />
+      <Handle
+        type="target"
+        position={Position.Right}
+        id="handle-right"
+        style={{ background: '#6366f1', width: 10, height: 10, opacity: 0.3 }}
+        isConnectable={true}
+      />
 
       {/* Mind map header */}
       <div className="flex items-center gap-2 mb-4">
@@ -220,4 +276,4 @@ export const MindMapNode: React.FC<MindMapNodeProps> = ({
       </button>
     </div>
   );
-}; 
+};

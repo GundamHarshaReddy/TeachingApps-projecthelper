@@ -54,11 +54,23 @@ export interface ProblemSolverProps {
 
 export interface AssistantData {
   topic: string;
-  specificGoals: string;
+  specificGoals: string[];
   timeAvailable: string;
   grade: string;
   projectDomain: string;
   projectId?: string | null;
+  diagramContent?: string;
+  diagramType?: 'mindmap' | 'database' | 'businessCanvas' | 'leanCanvas' | 'flowchart' | 'default';
+}
+
+export interface AssistantDataFromPage {
+  topic: string;
+  specificGoals: string[];
+  timeAvailable: string;
+  grade: string;
+  projectDomain: string;
+  diagramContent?: string;
+  diagramType?: 'mindmap' | 'database' | 'businessCanvas' | 'leanCanvas' | 'flowchart' | 'default';
 }
 
 export interface DiagramData {

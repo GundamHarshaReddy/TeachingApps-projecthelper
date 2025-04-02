@@ -42,13 +42,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onClear,
   onShowHistory,
   onShowComments,
-  canUndo,
-  canRedo,
+  canUndo = false,
+  canRedo = false,
   onLoadTemplate,
   onContinueToAssistance,
 }) => {
+  console.log("[Sidebar] onContinueToAssistance prop:", !!onContinueToAssistance);
+
   return (
-    <div className="w-64 bg-white border-r border-gray-200 p-4 flex flex-col gap-4">
+    <div className="w-60 bg-white border-r flex flex-col h-full overflow-auto">
       {/* Node Types */}
       <div className="space-y-2">
         <h3 className="text-sm font-medium text-gray-500">Node Types</h3>
@@ -177,7 +179,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </div>
 
-      {/* Templates - Added Section */}
+      {/* Templates */}
       {onLoadTemplate && (
         <div className="space-y-2">
           <h3 className="text-sm font-medium text-gray-500">Templates</h3>
@@ -186,7 +188,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onClick={() => onLoadTemplate('businessModelCanvas')}
               className="flex items-center gap-2 p-2 text-sm border rounded hover:bg-gray-50 w-full text-left"
             >
-              {/* You might want a specific icon here */}
               <LayoutGrid className="w-4 h-4" /> 
               <span>Business Model Canvas</span>
             </button>
@@ -194,30 +195,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onClick={() => onLoadTemplate('leanCanvas')}
               className="flex items-center gap-2 p-2 text-sm border rounded hover:bg-gray-50 w-full text-left"
             >
-              {/* You might want a specific icon here */}
               <LayoutGrid className="w-4 h-4" /> 
               <span>Lean Canvas</span>
             </button>
           </div>
         </div>
       )}
-      {/* End Templates Section */}
 
-      {/* Continue to Assistance - Added Button */}
+      {/* Continue to Assistance */}
       {onContinueToAssistance && (
-         <div className="mt-auto pt-4 border-t border-gray-200"> {/* Pushes to bottom */}
+        <div className="mt-auto pt-4 border-t border-gray-200">
           <button
-            onClick={onContinueToAssistance}
-            className="flex items-center justify-center gap-2 p-2 text-sm border rounded hover:bg-blue-50 text-blue-600 w-full bg-blue-100"
+            onClick={() => {
+              console.log("[Sidebar] Continue to Assistance button clicked");
+              try {
+                onContinueToAssistance();
+                console.log("[Sidebar] onContinueToAssistance function called successfully");
+              } catch (error) {
+                console.error("[Sidebar] Error calling onContinueToAssistance:", error);
+              }
+            }}
+            className="flex items-center justify-center gap-2 p-3 text-sm font-medium rounded-md bg-blue-600 hover:bg-blue-700 text-white w-full"
           >
-            {/* You might want a specific icon like Wand or Sparkles */}
-            <Brain className="w-4 h-4" /> 
-            <span>Continue to Assistance</span>
+            <Brain className="w-5 h-5" /> 
+            <span>Continue to Assistant</span>
           </button>
         </div>
       )}
-      {/* End Continue to Assistance Button */}
-
     </div>
   );
-}; 
+};

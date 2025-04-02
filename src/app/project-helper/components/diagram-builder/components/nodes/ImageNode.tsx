@@ -89,15 +89,17 @@ export const ImageNode: React.FC<ImageNodeProps> = ({
           'border-gray-200'
         }`}
       >
-        {/* Connection handles */}
-        <Handle type="source" position={Position.Top} id="source-top" data-handleid="source-top" data-nodeid={id} data-handlepos={Position.Top} style={{...handleProps.style, zIndex: 20}} isConnectable={true} />
-        <Handle type="source" position={Position.Bottom} id="source-bottom" data-handleid="source-bottom" data-nodeid={id} data-handlepos={Position.Bottom} style={{...handleProps.style, zIndex: 20}} isConnectable={true} />
-        <Handle type="source" position={Position.Left} id="source-left" data-handleid="source-left" data-nodeid={id} data-handlepos={Position.Left} style={{...handleProps.style, zIndex: 20}} isConnectable={true} />
-        <Handle type="source" position={Position.Right} id="source-right" data-handleid="source-right" data-nodeid={id} data-handlepos={Position.Right} style={{...handleProps.style, zIndex: 20}} isConnectable={true} />
-        <Handle type="target" position={Position.Top} id="target-top" data-handleid="target-top" data-nodeid={id} data-handlepos={Position.Top} style={{ ...targetHandleOffset, top: -4, zIndex: 20 }} isConnectable={true} />
-        <Handle type="target" position={Position.Bottom} id="target-bottom" data-handleid="target-bottom" data-nodeid={id} data-handlepos={Position.Bottom} style={{ ...targetHandleOffset, bottom: -4, zIndex: 20 }} isConnectable={true} />
-        <Handle type="target" position={Position.Left} id="target-left" data-handleid="target-left" data-nodeid={id} data-handlepos={Position.Left} style={{ ...targetHandleOffset, left: -4, zIndex: 20 }} isConnectable={true} />
-        <Handle type="target" position={Position.Right} id="target-right" data-handleid="target-right" data-nodeid={id} data-handlepos={Position.Right} style={{ ...targetHandleOffset, right: -4, zIndex: 20 }} isConnectable={true} />
+        {/* Source handles - BLUE for outgoing connections */}
+        <Handle type="source" position={Position.Top} id="source-top" style={{ background: '#3498db', width: 8, height: 8 }} isConnectable={true} />
+        <Handle type="source" position={Position.Bottom} id="source-bottom" style={{ background: '#3498db', width: 8, height: 8 }} isConnectable={true} />
+        <Handle type="source" position={Position.Left} id="source-left" style={{ background: '#3498db', width: 8, height: 8 }} isConnectable={true} />
+        <Handle type="source" position={Position.Right} id="source-right" style={{ background: '#3498db', width: 8, height: 8 }} isConnectable={true} />
+        
+        {/* Target handles - GREEN for incoming connections */}
+        <Handle type="target" position={Position.Top} id="target-top" style={{ background: '#2ecc71', width: 8, height: 8, opacity: 0.8 }} isConnectable={true} />
+        <Handle type="target" position={Position.Bottom} id="target-bottom" style={{ background: '#2ecc71', width: 8, height: 8, opacity: 0.8 }} isConnectable={true} />
+        <Handle type="target" position={Position.Left} id="target-left" style={{ background: '#2ecc71', width: 8, height: 8, opacity: 0.8 }} isConnectable={true} />
+        <Handle type="target" position={Position.Right} id="target-right" style={{ background: '#2ecc71', width: 8, height: 8, opacity: 0.8 }} isConnectable={true} />
         
         <img 
           src={data.imageUrl || "/api/placeholder/200/150"}
@@ -143,4 +145,4 @@ export const ImageNode: React.FC<ImageNodeProps> = ({
       </div>
     </div>
   );
-}; 
+};

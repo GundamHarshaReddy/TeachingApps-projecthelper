@@ -158,15 +158,16 @@ export const ShapeNode: React.FC<ShapeNodeProps> = ({
 
     // Handle styles with improved positioning
     const handleStyle = { 
-      ...handleProps.style, 
+      background: '#555', 
+      width: 8, 
+      height: 8, 
       zIndex: 20,
       visibility: selected ? 'visible' as const : 'hidden' as const,
     };
     
     const targetStyle = {
-      ...targetHandleOffset,
-      zIndex: 20,
-      visibility: selected ? 'visible' as const : 'hidden' as const,
+      ...handleStyle,
+      opacity: 0.6,
     };
 
     switch (data.shape) {
@@ -177,14 +178,18 @@ export const ShapeNode: React.FC<ShapeNodeProps> = ({
             className={`${commonClasses} rounded-full border`}
             style={{ ...baseStyle, width: `${Math.min(nodeWidth, nodeHeight)}px`, height: `${Math.min(nodeWidth, nodeHeight)}px` }}
           >
-            <Handle type="source" position={Position.Top} id="source-top" data-handleid="source-top" data-nodeid={id} data-handlepos={Position.Top} style={{...handleStyle, zIndex: 20}} isConnectable={true} />
-            <Handle type="source" position={Position.Bottom} id="source-bottom" data-handleid="source-bottom" data-nodeid={id} data-handlepos={Position.Bottom} style={{...handleStyle, zIndex: 20}} isConnectable={true} />
-            <Handle type="source" position={Position.Left} id="source-left" data-handleid="source-left" data-nodeid={id} data-handlepos={Position.Left} style={{...handleStyle, zIndex: 20}} isConnectable={true} />
-            <Handle type="source" position={Position.Right} id="source-right" data-handleid="source-right" data-nodeid={id} data-handlepos={Position.Right} style={{...handleStyle, zIndex: 20}} isConnectable={true} />
-            <Handle type="target" position={Position.Top} id="target-top" data-handleid="target-top" data-nodeid={id} data-handlepos={Position.Top} style={{ ...targetStyle, top: -4, zIndex: 20 }} isConnectable={true} />
-            <Handle type="target" position={Position.Bottom} id="target-bottom" data-handleid="target-bottom" data-nodeid={id} data-handlepos={Position.Bottom} style={{ ...targetStyle, bottom: -4, zIndex: 20 }} isConnectable={true} />
-            <Handle type="target" position={Position.Left} id="target-left" data-handleid="target-left" data-nodeid={id} data-handlepos={Position.Left} style={{ ...targetStyle, left: -4, zIndex: 20 }} isConnectable={true} />
-            <Handle type="target" position={Position.Right} id="target-right" data-handleid="target-right" data-nodeid={id} data-handlepos={Position.Right} style={{ ...targetStyle, right: -4, zIndex: 20 }} isConnectable={true} />
+            {/* Bidirectional handles - can be used as both source and target */}
+            <Handle type="source" position={Position.Top} id="handle-top" style={{ background: '#6366f1', width: 10, height: 10, opacity: 0.8 }} isConnectable={true} />
+            <Handle type="source" position={Position.Bottom} id="handle-bottom" style={{ background: '#6366f1', width: 10, height: 10, opacity: 0.8 }} isConnectable={true} />
+            <Handle type="source" position={Position.Left} id="handle-left" style={{ background: '#6366f1', width: 10, height: 10, opacity: 0.8 }} isConnectable={true} />
+            <Handle type="source" position={Position.Right} id="handle-right" style={{ background: '#6366f1', width: 10, height: 10, opacity: 0.8 }} isConnectable={true} />
+            
+            {/* Same handles but as targets with lower opacity */}
+            <Handle type="target" position={Position.Top} id="handle-top" style={{ background: '#6366f1', width: 10, height: 10, opacity: 0.3 }} isConnectable={true} />
+            <Handle type="target" position={Position.Bottom} id="handle-bottom" style={{ background: '#6366f1', width: 10, height: 10, opacity: 0.3 }} isConnectable={true} />
+            <Handle type="target" position={Position.Left} id="handle-left" style={{ background: '#6366f1', width: 10, height: 10, opacity: 0.3 }} isConnectable={true} />
+            <Handle type="target" position={Position.Right} id="handle-right" style={{ background: '#6366f1', width: 10, height: 10, opacity: 0.3 }} isConnectable={true} />
+
             {renderTextContent()}
           </div>
         );
@@ -195,12 +200,12 @@ export const ShapeNode: React.FC<ShapeNodeProps> = ({
              className="relative border border-transparent"
              style={{ ...baseStyle, background: 'none', width: `${nodeWidth}px`, height: `${nodeHeight}px` }}
           >
-            <Handle type="source" position={Position.Top} id="source-top" data-handleid="source-top" data-nodeid={id} data-handlepos={Position.Top} style={{ ...handleStyle, top: '0%', zIndex: 20 }} isConnectable={true} />
-            <Handle type="source" position={Position.Bottom} id="source-bottom-left" data-handleid="source-bottom-left" data-nodeid={id} data-handlepos={Position.Bottom} style={{ ...handleStyle, bottom: '-4px', left: '5%', zIndex: 20 }} isConnectable={true} />
-            <Handle type="source" position={Position.Bottom} id="source-bottom-right" data-handleid="source-bottom-right" data-nodeid={id} data-handlepos={Position.Bottom} style={{ ...handleStyle, bottom: '-4px', right: '5%', zIndex: 20 }} isConnectable={true} />
-            <Handle type="target" position={Position.Top} id="target-top" data-handleid="target-top" data-nodeid={id} data-handlepos={Position.Top} style={{ ...targetStyle, top: -8, zIndex: 20 }} isConnectable={true} />
-            <Handle type="target" position={Position.Bottom} id="target-bottom-left" data-handleid="target-bottom-left" data-nodeid={id} data-handlepos={Position.Bottom} style={{ ...targetStyle, bottom: -8, left: '5%', zIndex: 20 }} isConnectable={true} />
-            <Handle type="target" position={Position.Bottom} id="target-bottom-right" data-handleid="target-bottom-right" data-nodeid={id} data-handlepos={Position.Bottom} style={{ ...targetStyle, bottom: -8, right: '5%', zIndex: 20 }} isConnectable={true} />
+            <Handle type="source" position={Position.Top} id="handle-top" style={{ ...handleStyle, top: '0%', background: '#6366f1', opacity: 0.8 }} isConnectable={true} />
+            <Handle type="source" position={Position.Bottom} id="handle-bottom-left" style={{ ...handleStyle, left: '5%', background: '#6366f1', opacity: 0.8 }} isConnectable={true} />
+            <Handle type="source" position={Position.Bottom} id="handle-bottom-right" style={{ ...handleStyle, right: '5%', background: '#6366f1', opacity: 0.8 }} isConnectable={true} />
+            <Handle type="target" position={Position.Top} id="handle-top" style={{ ...targetStyle, top: '0%', background: '#6366f1', opacity: 0.3 }} isConnectable={true} />
+            <Handle type="target" position={Position.Bottom} id="handle-bottom-left" style={{ ...targetStyle, left: '5%', background: '#6366f1', opacity: 0.3 }} isConnectable={true} />
+            <Handle type="target" position={Position.Bottom} id="handle-bottom-right" style={{ ...targetStyle, right: '5%', background: '#6366f1', opacity: 0.3 }} isConnectable={true} />
             <div
               className={`${commonClasses} absolute`} 
               style={{
@@ -227,16 +232,16 @@ export const ShapeNode: React.FC<ShapeNodeProps> = ({
              style={{ ...baseStyle, width: `${nodeWidth}px`, height: `${nodeHeight}px` }}
           >
             <div 
-               className="absolute inset-0 transform rotate-45 bg-inherit border-inherit" 
+               className="absolute inset-0 transform rotate-45 bg-inherit border-inherit"
                style={{ backgroundColor: data.color || '#ffffff', borderColor: data.borderColor || '#cccccc' }} />
-            <Handle type="source" position={Position.Top} id="source-top" data-handleid="source-top" data-nodeid={id} data-handlepos={Position.Top} style={{...handleStyle, zIndex: 20}} isConnectable={true} />
-            <Handle type="source" position={Position.Bottom} id="source-bottom" data-handleid="source-bottom" data-nodeid={id} data-handlepos={Position.Bottom} style={{...handleStyle, zIndex: 20}} isConnectable={true} />
-            <Handle type="source" position={Position.Left} id="source-left" data-handleid="source-left" data-nodeid={id} data-handlepos={Position.Left} style={{...handleStyle, zIndex: 20}} isConnectable={true} />
-            <Handle type="source" position={Position.Right} id="source-right" data-handleid="source-right" data-nodeid={id} data-handlepos={Position.Right} style={{...handleStyle, zIndex: 20}} isConnectable={true} />
-            <Handle type="target" position={Position.Top} id="target-top" data-handleid="target-top" data-nodeid={id} data-handlepos={Position.Top} style={{ ...targetStyle, top: -4, zIndex: 20 }} isConnectable={true} />
-            <Handle type="target" position={Position.Bottom} id="target-bottom" data-handleid="target-bottom" data-nodeid={id} data-handlepos={Position.Bottom} style={{ ...targetStyle, bottom: -4, zIndex: 20 }} isConnectable={true} />
-            <Handle type="target" position={Position.Left} id="target-left" data-handleid="target-left" data-nodeid={id} data-handlepos={Position.Left} style={{ ...targetStyle, left: -4, zIndex: 20 }} isConnectable={true} />
-            <Handle type="target" position={Position.Right} id="target-right" data-handleid="target-right" data-nodeid={id} data-handlepos={Position.Right} style={{ ...targetStyle, right: -4, zIndex: 20 }} isConnectable={true} />
+            <Handle type="source" position={Position.Top} id="handle-top" style={handleStyle} isConnectable={true} />
+            <Handle type="source" position={Position.Bottom} id="handle-bottom" style={handleStyle} isConnectable={true} />
+            <Handle type="source" position={Position.Left} id="handle-left" style={handleStyle} isConnectable={true} />
+            <Handle type="source" position={Position.Right} id="handle-right" style={handleStyle} isConnectable={true} />
+            <Handle type="target" position={Position.Top} id="handle-top" style={targetStyle} isConnectable={true} />
+            <Handle type="target" position={Position.Bottom} id="handle-bottom" style={targetStyle} isConnectable={true} />
+            <Handle type="target" position={Position.Left} id="handle-left" style={targetStyle} isConnectable={true} />
+            <Handle type="target" position={Position.Right} id="handle-right" style={targetStyle} isConnectable={true} />
             <div className="absolute inset-0 flex items-center justify-center">
                {renderTextContent()}
              </div>
@@ -249,14 +254,14 @@ export const ShapeNode: React.FC<ShapeNodeProps> = ({
             className={`${commonClasses} rounded-md border`}
             style={baseStyle}
           >
-            <Handle type="source" position={Position.Top} id="source-top" data-handleid="source-top" data-nodeid={id} data-handlepos={Position.Top} style={{...handleStyle, zIndex: 20}} isConnectable={true} />
-            <Handle type="source" position={Position.Bottom} id="source-bottom" data-handleid="source-bottom" data-nodeid={id} data-handlepos={Position.Bottom} style={{...handleStyle, zIndex: 20}} isConnectable={true} />
-            <Handle type="source" position={Position.Left} id="source-left" data-handleid="source-left" data-nodeid={id} data-handlepos={Position.Left} style={{...handleStyle, zIndex: 20}} isConnectable={true} />
-            <Handle type="source" position={Position.Right} id="source-right" data-handleid="source-right" data-nodeid={id} data-handlepos={Position.Right} style={{...handleStyle, zIndex: 20}} isConnectable={true} />
-            <Handle type="target" position={Position.Top} id="target-top" data-handleid="target-top" data-nodeid={id} data-handlepos={Position.Top} style={{ ...targetStyle, top: -4, zIndex: 20 }} isConnectable={true} />
-            <Handle type="target" position={Position.Bottom} id="target-bottom" data-handleid="target-bottom" data-nodeid={id} data-handlepos={Position.Bottom} style={{ ...targetStyle, bottom: -4, zIndex: 20 }} isConnectable={true} />
-            <Handle type="target" position={Position.Left} id="target-left" data-handleid="target-left" data-nodeid={id} data-handlepos={Position.Left} style={{ ...targetStyle, left: -4, zIndex: 20 }} isConnectable={true} />
-            <Handle type="target" position={Position.Right} id="target-right" data-handleid="target-right" data-nodeid={id} data-handlepos={Position.Right} style={{ ...targetStyle, right: -4, zIndex: 20 }} isConnectable={true} />
+            <Handle type="source" position={Position.Top} id="handle-top" style={handleStyle} isConnectable={true} />
+            <Handle type="source" position={Position.Bottom} id="handle-bottom" style={handleStyle} isConnectable={true} />
+            <Handle type="source" position={Position.Left} id="handle-left" style={handleStyle} isConnectable={true} />
+            <Handle type="source" position={Position.Right} id="handle-right" style={handleStyle} isConnectable={true} />
+            <Handle type="target" position={Position.Top} id="handle-top" style={targetStyle} isConnectable={true} />
+            <Handle type="target" position={Position.Bottom} id="handle-bottom" style={targetStyle} isConnectable={true} />
+            <Handle type="target" position={Position.Left} id="handle-left" style={targetStyle} isConnectable={true} />
+            <Handle type="target" position={Position.Right} id="handle-right" style={targetStyle} isConnectable={true} />
             {renderTextContent()}
           </div>
         );
@@ -304,4 +309,4 @@ export const ShapeNode: React.FC<ShapeNodeProps> = ({
       {renderShape()}
     </div>
   );
-}; 
+};

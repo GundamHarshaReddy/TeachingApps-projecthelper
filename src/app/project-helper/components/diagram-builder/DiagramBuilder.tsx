@@ -5,6 +5,7 @@ import { Canvas } from './components/Canvas';
 import { DiagramBuilderProps, AssistantDataFromPage, CanvasNodeData, FlowNodeData, ShapeNodeData, TextNodeData, ImageNodeData, CodeNodeData, DatabaseNodeData, MindMapNodeData } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import { businessModelCanvasTemplate, leanCanvasTemplate } from './templates';
+import { extractDiagramContent, extractSpecificGoalsFromNodes } from './utils/diagramContentExtractor';
 
 // Add Dialog components for the save modal
 import {
@@ -190,41 +191,79 @@ export const DiagramBuilder: React.FC<DiagramBuilderProps> = ({
   );
 
   const onConnect = useCallback(
-    (params: Connection) => {
-      console.log("[DiagramBuilder] onConnect called with params:", params);
+    (connection: Connection) => {
+      console.log("[DiagramBuilder] onConnect called with:", connection);
       
-      console.log("[DiagramBuilder] Calling addEdge with connection params:", params);
+      // Normalize handle IDs to ensure compatibility with both old and new formats
+      let sourceHandle = connection.sourceHandle;
+      let targetHandle = connection.targetHandle;
+      
+      if (sourceHandle && (sourceHandle.startsWith('source-') || sourceHandle.startsWith('target-'))) {
+        const direction = sourceHandle.split('-')[1];
+        sourceHandle = `handle-${direction}`;
+      }
+      
+      if (targetHandle && (targetHandle.startsWith('source-') || targetHandle.startsWith('target-'))) {
+        const direction = targetHandle.split('-')[1];
+        targetHandle = `handle-${direction}`;
+      }
+      
+      // Create connection with normalized handles
+      const normalizedConnection = {
+        ...connection,
+        sourceHandle,
+        targetHandle
+      };
       
       setEdges((eds) => {
-        console.log("[DiagramBuilder] setEdges - BEFORE addEdge. Current edges:", eds);
-        // Let addEdge convert the Connection to an Edge and add it
-        const newEdges = addEdge(params, eds);
-        console.log("[DiagramBuilder] setEdges - AFTER addEdge. New edges:", newEdges); 
-        
-        // Save to history
-        setTimeout(() => {
-          setNodes((currentNodes) => {
-            const newState = { nodes: currentNodes, edges: newEdges };
-            const newHistory = history.slice(0, currentHistoryIndex + 1);
-            newHistory.push(newState);
-            if (newHistory.length > 50) newHistory.shift();
-            setHistory(newHistory);
-            setCurrentHistoryIndex(newHistory.length - 1);
-            console.log("[DiagramBuilder] History saved after adding edge. Index:", newHistory.length - 1);
-            return currentNodes;
-          });
-        }, 0);
-        
+        const newEdges = addEdge(normalizedConnection, eds);
+        setNodes((nds) => {
+          const newState = { nodes: nds, edges: newEdges };
+          const newHistory = history.slice(0, currentHistoryIndex + 1);
+          newHistory.push(newState);
+          if (newHistory.length > 50) newHistory.shift();
+          setHistory(newHistory);
+          setCurrentHistoryIndex(newHistory.length - 1);
+          console.log("[DiagramBuilder] History saved after adding edge. Index:", newHistory.length - 1);
+          return nds;
+        });
         return newEdges;
       });
     },
-    [setEdges, setNodes, history, currentHistoryIndex, setHistory]
+    [setEdges, setNodes, history, currentHistoryIndex]
   );
 
   useEffect(() => {
     console.log("[DiagramBuilder] useEffect for diagramData running...");
+    
+    // Normalize edge handles to work with the new handle system
+    const normalizeEdgeHandles = (edges: Edge[]): Edge[] => {
+      return edges.map(edge => {
+        let sourceHandle = edge.sourceHandle;
+        let targetHandle = edge.targetHandle;
+        
+        // Convert old handle formats to new format
+        if (sourceHandle && (sourceHandle.startsWith('source-') || sourceHandle.startsWith('target-'))) {
+          const direction = sourceHandle.split('-')[1];
+          sourceHandle = `handle-${direction}`;
+        }
+        
+        if (targetHandle && (targetHandle.startsWith('source-') || targetHandle.startsWith('target-'))) {
+          const direction = targetHandle.split('-')[1];
+          targetHandle = `handle-${direction}`;
+        }
+        
+        return {
+          ...edge,
+          sourceHandle,
+          targetHandle
+        };
+      });
+    };
+    
     const initialNodes = diagramData?.nodes || [];
-    const initialEdges = diagramData?.edges || [];
+    const initialEdges = normalizeEdgeHandles(diagramData?.edges || []);
+    
     setNodes(initialNodes);
     setEdges(initialEdges);
     setHistory([{ nodes: initialNodes, edges: initialEdges }]);
@@ -311,6 +350,8 @@ export const DiagramBuilder: React.FC<DiagramBuilderProps> = ({
 
     if (newNode) {
       console.log("[DiagramBuilder] Adding new node:", newNode);
+      // Note: All nodes use the 'handle-{position}' ID format for connections
+      // This standardized system allows for connecting any handle to any other handle
       setNodes((nds) => {
         const updatedNodes = nds.concat(newNode!);
         setEdges((eds) => {
@@ -588,40 +629,51 @@ export const DiagramBuilder: React.FC<DiagramBuilderProps> = ({
 
    // --- Continue to Assistance Logic ---
   const handleContinueToAssistance = useCallback(() => {
+    console.log("[DiagramBuilder] ***** CONTINUE TO ASSISTANCE BUTTON CLICKED *****");
     console.log("[DiagramBuilder] handleContinueToAssistance called.");
     if (!projectData) {
       console.warn("[DiagramBuilder] Cannot continue to assistance: projectData is missing.");
-      // Optionally, show a message to the user
+      alert("Missing project data - please ensure you have a project selected.");
       return;
     }
-    if (!onAssistantData) {
-       console.warn("[DiagramBuilder] Cannot continue to assistance: onAssistantData prop is missing.");
-       return;
-    }
-
+    
     // Get current nodes and edges from state
     const currentNodes = nodes;
     const currentEdges = edges;
 
+    // Extract readable content from diagram
+    const diagramContentText = extractDiagramContent(currentNodes, currentEdges);
+    console.log("[DiagramBuilder] Extracted diagram content:", diagramContentText.substring(0, 100) + "...");
+    
+    // Extract specific goals from nodes (for example, from text/canvas nodes)
+    const specificGoals = extractSpecificGoalsFromNodes(currentNodes);
+
     // Prepare data for the assistant
     const assistantData: AssistantDataFromPage = {
       topic: projectData.projectName || projectData.projectDescription || 'Untitled Project',
-      // TODO: Determine how to get specific goals - maybe from nodes? For now, an empty array.
-      specificGoals: [],
-      timeAvailable: projectData.duration || 'Not specified', // Assuming duration is a string like "X weeks"
+      specificGoals: specificGoals.length > 0 ? specificGoals : ['Understanding the diagram'],
+      timeAvailable: projectData.duration || 'Not specified',
       grade: projectData.grade || 'Not specified',
       projectDomain: projectData.projectDomain || 'General',
       projectId: projectData.id || null,
       // Include the current diagram state
       nodes: currentNodes,
       edges: currentEdges,
+      // Add the extracted content as a field
+      diagramContent: diagramContentText
     };
 
     console.log("[DiagramBuilder] Calling onAssistantData with:", assistantData);
-    onAssistantData(assistantData);
-
-  }, [projectData, onAssistantData, nodes, edges]); // Added edges dependency
-  // --- End Continue to Assistance Logic ---
+    
+    try {
+      // Call the onAssistantData prop with the prepared data
+      onAssistantData(assistantData);
+      console.log("[DiagramBuilder] Successfully called onAssistantData");
+    } catch (error) {
+      console.error("[DiagramBuilder] Error in onAssistantData:", error);
+      alert("An error occurred while preparing assistant data. Please try again.");
+    }
+  }, [nodes, edges, projectData, onAssistantData, extractDiagramContent, extractSpecificGoalsFromNodes]);
 
   // Template loading effect - runs on initial render if templateType is provided
   useEffect(() => {
@@ -692,4 +744,4 @@ export const DiagramBuilder: React.FC<DiagramBuilderProps> = ({
       />
     </div>
   );
-}; 
+};

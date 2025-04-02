@@ -19,7 +19,7 @@ export interface DiagramBuilderProps {
     id?: string;
     duration?: string;
   } | null;
-  onAssistantData?: (data: AssistantDataFromPage) => void;
+  onAssistantData: (data: AssistantDataFromPage) => void;
   onSave?: (data: { nodes: Node[]; edges: Edge[] }) => void;
   onExport?: (data: { nodes: Node[]; edges: Edge[] }) => void;
   onClear?: () => void;
@@ -37,6 +37,7 @@ export interface AssistantDataFromPage {
   projectId?: string | null;
   nodes?: Node[];
   edges?: Edge[];
+  diagramContent?: string; // Add this field
 }
 
 export interface AssistantDataInternal {
@@ -178,4 +179,4 @@ export interface MindMapNodeData {
   color?: string;
   comments?: CommentData[];
   onUpdate?: (nodeId: string, newData: Partial<MindMapNodeData>) => void;
-} 
+}

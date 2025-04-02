@@ -34,6 +34,12 @@ const nodeTypes = {
   mindMapNode: MindMapNode,
 };
 
+// Define edgeTypes *outside* the component function (even if using defaults)
+const edgeTypes = {
+  // You could add custom edge types here if needed
+  // Example: customEdge: CustomEdgeComponent
+};
+
 interface CanvasProps {
   nodes: Node[];
   edges: Edge[];
@@ -136,33 +142,48 @@ export const Canvas: React.FC<CanvasProps> = ({
 
   // Handle edge connections
   const handleConnect = useCallback((connection: Connection) => {
-    console.log("***** [Canvas] handleConnect TRIGGERED *****", JSON.stringify(connection, null, 2));
-    console.log("[Canvas] handleConnect received connection:", JSON.stringify(connection, null, 2));
-    // Validate connection
+    console.log("[Canvas] handleConnect TRIGGERED", connection);
+
+    // Validate connection endpoints - guarantees source and target are strings after this
     if (!connection.source || !connection.target) {
-      console.warn('[Canvas] Invalid connection: missing source or target');
+      console.warn('Invalid connection - missing endpoints');
       return;
     }
-
-    // Prevent self-connections
-    if (connection.source === connection.target) {
-      console.warn('Cannot connect node to itself');
-      return;
+    
+    // Normalize handle IDs to ensure compatibility with both old and new formats
+    // Convert any "source-*" or "target-*" formats to "handle-*" format
+    let sourceHandle = connection.sourceHandle;
+    let targetHandle = connection.targetHandle;
+    
+    if (sourceHandle && (sourceHandle.startsWith('source-') || sourceHandle.startsWith('target-'))) {
+      const direction = sourceHandle.split('-')[1];
+      sourceHandle = `handle-${direction}`;
+    }
+    
+    if (targetHandle && (targetHandle.startsWith('source-') || targetHandle.startsWith('target-'))) {
+      const direction = targetHandle.split('-')[1];
+      targetHandle = `handle-${direction}`;
     }
 
-    // Check if connection already exists
-    const connectionExists = edges.some(
-      edge => edge.source === connection.source && edge.target === connection.target
-    );
+    // Create properly typed edge with unified handle system
+    const newEdge: Edge = {
+      id: uuidv4(),
+      source: connection.source,
+      target: connection.target,
+      sourceHandle: sourceHandle || null,
+      targetHandle: targetHandle || null,
+      type: 'default',
+      markerEnd: { type: MarkerType.ArrowClosed },
+    };
 
-    if (connectionExists) {
-      console.warn('Connection already exists');
-      return;
-    }
+    onEdgesChange([{
+      type: 'add',
+      item: newEdge
+    }]);
 
-    // Pass the original connection object up to the parent (DiagramBuilder)
+    // Pass the original 'connection' object which has the correct type
     onConnect(connection);
-  }, [onConnect, edges]);
+  }, [onConnect, onEdgesChange]);
 
   return (
     <div className="w-full h-full" style={{ width: '100%', height: '100vh' }}>
@@ -173,10 +194,11 @@ export const Canvas: React.FC<CanvasProps> = ({
         onEdgesChange={onEdgesChange}
         onConnect={handleConnect}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         fitView
         className="bg-gray-50"
         style={{ width: '100%', height: '100%' }}
-        connectionMode={ConnectionMode.Strict}
+        connectionMode={ConnectionMode.Loose}
         defaultEdgeOptions={{
           type: 'smoothstep',
           animated: true,
@@ -193,6 +215,10 @@ export const Canvas: React.FC<CanvasProps> = ({
         snapToGrid={true}
         snapGrid={[15, 15]}
         defaultViewport={{ x: 0, y: 0, zoom: 1 }}
+        isValidConnection={(connection) => {
+          // Allow any valid connection with source and target
+          return !!connection.source && !!connection.target;
+        }}
       >
         <Background />
         <Controls />
@@ -204,6 +230,11 @@ export const Canvas: React.FC<CanvasProps> = ({
           <button onClick={triggerRedo} title="Redo (Ctrl+Y)">
             Redo
           </button>
+        </Panel>
+        
+        {/* Simple connection instruction */}
+        <Panel position="bottom-left" className="bg-white p-2 rounded shadow mb-4 ml-4 text-xs opacity-80">
+          <div>Drag from any purple dot to connect nodes</div>
         </Panel>
       </ReactFlow>
       {contextMenu && (

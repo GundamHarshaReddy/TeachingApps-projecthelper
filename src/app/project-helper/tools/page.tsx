@@ -67,6 +67,8 @@ export default function ToolsPage() {
     edges: Edge[];
   } | undefined>();
   const [toolContextData, setToolContextData] = useState<AssistantData | undefined | null>();
+  const [assistantData, setAssistantData] = useState<AssistantData | null>(null);
+  const [initialAssistantMessage, setInitialAssistantMessage] = useState<string | null>(null);
 
   // Add a function to fetch diagram history
   interface DiagramHistoryItem {
@@ -280,22 +282,61 @@ export default function ToolsPage() {
   };
 
   // Update handler
-  const handleToolContextData = (data: AssistantDataFromPage) => {
-    console.log('handleToolContextData called with:', data);
+  const handleToolContextData = (data: any) => {
+    console.log('[handleToolContextData] Function called with data:', JSON.stringify(data).substring(0, 500) + '...');
     
-    // Convert AssistantDataFromPage to AssistantData for our ProblemSolver
+    // Add explicit validation and debug logs
+    if (!data) {
+      console.error('[handleToolContextData] Called with null or undefined data');
+      return;
+    }
+    
+    // Convert data to the format expected by the assistant
     const assistantData: AssistantData = {
-      topic: data.topic,
-      specificGoals: Array.isArray(data.specificGoals) ? data.specificGoals.join(", ") : data.specificGoals,
-      timeAvailable: data.timeAvailable,
-      grade: data.grade,
-      projectDomain: data.projectDomain,
-      projectId: data.projectId || null
+      topic: data.topic || 'Project Analysis',
+      specificGoals: data.specificGoals || [],
+      timeAvailable: data.timeAvailable || '',
+      grade: data.grade || '',
+      projectDomain: data.projectDomain || '',
+      projectId: data.projectId || '',
     };
+
+    // Create initial message with diagram content if available
+    let initialMessage = `I need help with a project on ${data.topic || 'this project'}.`;
     
-    setToolContextData(assistantData);
+    if (data.specificGoals && data.specificGoals.length > 0) {
+      initialMessage += ` My specific goals are: ${data.specificGoals.join(', ')}.`;
+    }
+    
+    if (data.diagramContent) {
+      initialMessage += `\n\nHere is the diagram I've created:\n\n${data.diagramContent}`;
+      console.log("[handleToolContextData] Diagram content found, adding to initial message");
+    } else {
+      console.log("[handleToolContextData] No diagram content found in the data");
+      // If no diagram content but we have nodes, add a note about it
+      if (data.nodes && data.nodes.length > 0) {
+        initialMessage += "\n\nI've created a diagram with " + data.nodes.length + " elements.";
+      }
+    }
+    
+    console.log("[handleToolContextData] Setting assistant data:", JSON.stringify(assistantData));
+    console.log("[handleToolContextData] Setting initial message:", initialMessage.substring(0, 100) + "...");
+    
+    // Set the state for the assistant
+    setAssistantData(assistantData);
+    setInitialAssistantMessage(initialMessage);
+    
+    // Navigate to the assistant page - ensure this always happens
+    console.log("[handleToolContextData] Activating assistant tab");
     setAssistantStarted(true);
-    setActiveTab("assistant");
+    
+    // Use setTimeout to ensure state updates before tab change
+    setTimeout(() => {
+      console.log("[handleToolContextData] Setting active tab to assistant");
+      setActiveTab("assistant");
+    }, 0);
+    
+    console.log("[handleToolContextData] Function completed");
   };
 
   const handleProjectAssistant = (data: any) => {
@@ -728,9 +769,7 @@ export default function ToolsPage() {
                       diagramData={diagramData}
                       projectData={projectData}
                       onAssistantData={handleToolContextData}
-                      // Add the save handler
                       onSave={handleSaveDiagram}
-                      // Only pass valid template types (not 'blank' or null)
                       templateType={
                         selectedDiagramTemplate !== null && 
                         selectedDiagramTemplate !== 'blank' ? 
@@ -766,7 +805,8 @@ export default function ToolsPage() {
               ) : (
                 <ProblemSolver 
                   projectData={projectData}
-                  toolContext={toolContextData}
+                  toolContext={assistantData}
+                  initialMessage={initialAssistantMessage}
                 />
               )}
             </TabsContent>
