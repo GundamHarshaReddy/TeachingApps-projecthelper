@@ -343,6 +343,14 @@ export async function generateChatResponse(messages: Message[], topic: string) {
 Conversation History:
 ${formattedMessages.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n')}
 
+When discussing code, diagrams, or technical concepts, explicitly point out relationships between components using phrases like:
+- "Component X connects to Component Y for handling user input"
+- "The Canvas component maps to the DiagramBuilder which manages node connections"
+- "The handle-top ID points to the top connection point"
+- "This class is linked with that interface via inheritance"
+
+Be sure to use clear relationship verbs (maps to, connects to, points to, links to, references) when explaining how different parts of code or diagrams are related.
+
 Keep your response concise, helpful, and specific to the student's project context. Use markdown formatting for better readability.`;
 
   try {

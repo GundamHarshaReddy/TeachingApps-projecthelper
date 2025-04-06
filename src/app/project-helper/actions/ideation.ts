@@ -149,6 +149,7 @@ export async function getIdeationById(ideationId: string) {
 
 export async function deleteIdeationById(ideationId: string) {
   try {
+    console.log(`[deleteIdeationById] Attempting to delete ideation with ID: ${ideationId}`);
     const supabase = getSupabaseClient();
 
     const { error } = await supabase
@@ -156,10 +157,15 @@ export async function deleteIdeationById(ideationId: string) {
       .delete()
       .eq('id', ideationId);
 
-    if (error) throw new Error(`Error deleting ideation: ${error.message}`);
+    if (error) {
+      console.error(`[deleteIdeationById] Database error:`, error);
+      return false;
+    }
+    
+    console.log(`[deleteIdeationById] Successfully deleted ideation with ID: ${ideationId}`);
     return true;
   } catch (err) {
-    console.error('Error in deleteIdeationById:', err);
-    throw err;
+    console.error('[deleteIdeationById] Error:', err);
+    return false;
   }
 } 

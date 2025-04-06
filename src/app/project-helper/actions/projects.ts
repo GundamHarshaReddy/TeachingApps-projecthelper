@@ -7,7 +7,11 @@ interface ProjectFormData {
   projectName: string;
   grade: string;
   projectDomain: string;
-  description: string;
+  subject: string;
+  interests: string;
+  toolsOrSkills: string;
+  skillLevel: string;
+  targetAudience: string;
 }
 
 export async function createProjectInDB(data: ProjectFormData): Promise<string> {
@@ -26,7 +30,11 @@ export async function createProjectInDB(data: ProjectFormData): Promise<string> 
         name: data.projectName,
         grade: data.grade,
         domain: data.projectDomain,
-        description: data.description,
+        subject: data.subject,
+        interests: data.interests,
+        tools_or_skills: data.toolsOrSkills,
+        skill_level: data.skillLevel,
+        target_audience: data.targetAudience,
         user_id: '00000000-0000-0000-0000-000000000000' // Placeholder user_id for development
       });
     

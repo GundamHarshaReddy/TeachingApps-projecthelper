@@ -1,14 +1,126 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "../components/ui/button";
 import { Textarea } from "../components/ui/textarea";
 import { Card, CardContent } from "../components/ui/card";
 import { generateChatResponse } from "../actions/ai";
 import ReactMarkdown from "react-markdown";
 import { Alert, AlertDescription } from "../components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, ArrowRight } from "lucide-react";
 import type { Message, ProjectData, AssistantData } from "../types";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../components/ui/tooltip";
+
+// Local storage keys
+const STORAGE_KEYS = {
+  messages: "problemsolver_messages",
+};
+
+// Helper function to load state from localStorage
+const loadFromStorage = (key: string, defaultValue: any) => {
+  if (typeof window === 'undefined') return defaultValue;
+  try {
+    const item = localStorage.getItem(key);
+    return item ? JSON.parse(item) : defaultValue;
+  } catch (error) {
+    console.error(`Error loading ${key} from localStorage:`, error);
+    return defaultValue;
+  }
+};
+
+// Helper function to detect code relationships mentioned in text
+const detectCodeRelationships = (content: string): { text: string, relationships: Array<{from: string, to: string, description: string}> } => {
+  // Initialize relationships array
+  const relationships: Array<{from: string, to: string, description: string}> = [];
+  
+  // Look for patterns like "X maps to Y" or "X connects to Y" or "X points to Y"
+  const mappingPatterns = [
+    /(\w+[\w\s.()]+)\s+(?:maps|connects|points|links)\s+to\s+(\w+[\w\s.()]+?)(?:\s+(?:for|which|that|via|through|using)\s+([\w\s.()]+))?[,.]/gi,
+    /(\w+[\w\s.()]+)\s+(?:is connected to|is linked with|references)\s+(\w+[\w\s.()]+?)(?:\s+(?:for|which|that|via|through|using)\s+([\w\s.()]+))?[,.]/gi,
+    /relationship\s+between\s+(\w+[\w\s.()]+)\s+and\s+(\w+[\w\s.()]+?)(?:\s+(?:for|which|that|via|through|using)\s+([\w\s.()]+))?[,.]/gi
+  ];
+  
+  // Create a modified content with relationship markers
+  let modifiedContent = content;
+  
+  // Apply each pattern
+  mappingPatterns.forEach(pattern => {
+    modifiedContent = modifiedContent.replace(pattern, (match, from, to, description = '') => {
+      // Add to relationships array
+      relationships.push({
+        from: from.trim(),
+        to: to.trim(),
+        description: description.trim()
+      });
+      
+      // Modify the text to include relationship markers
+      const relationshipId = `rel-${relationships.length}`;
+      return `<span class="relationship" data-rel-id="${relationshipId}">${match}</span>`;
+    });
+  });
+  
+  return { text: modifiedContent, relationships };
+};
+
+// Component to render a message with relationship pointers
+const MessageWithRelationships = ({ content }: { content: string }) => {
+  const { text, relationships } = detectCodeRelationships(content);
+  const [hoveredRelationship, setHoveredRelationship] = useState<number | null>(null);
+  
+  // If no relationships found, render normal markdown
+  if (relationships.length === 0) {
+    return (
+      <ReactMarkdown
+        components={{
+          div: ({ children }) => (
+            <div className="prose prose-sm max-w-none">{children}</div>
+          ),
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    );
+  }
+  
+  // Parse the modified content with relationship markers
+  return (
+    <div className="prose prose-sm max-w-none">
+      <div dangerouslySetInnerHTML={{ __html: text.replace(/<span class="relationship" data-rel-id="(rel-\d+)">(.+?)<\/span>/g, 
+        (match, id, text) => {
+          const index = parseInt(id.split('-')[1]) - 1;
+          return `<span class="relationship bg-blue-100 rounded px-1 cursor-pointer" data-rel-id="${id}">${text}</span>`;
+        }) 
+      }} />
+      
+      {relationships.length > 0 && (
+        <div className="mt-3 p-2 border border-blue-200 rounded bg-blue-50">
+          <div className="text-sm font-medium text-blue-800 mb-1">Relationships:</div>
+          {relationships.map((rel, index) => (
+            <TooltipProvider key={index}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div 
+                    className="flex items-center text-xs mb-1 p-1 hover:bg-blue-100 rounded"
+                    onMouseEnter={() => setHoveredRelationship(index)}
+                    onMouseLeave={() => setHoveredRelationship(null)}
+                  >
+                    <span className="font-medium">{rel.from}</span>
+                    <ArrowRight className="mx-1 w-3 h-3" />
+                    <span className="font-medium">{rel.to}</span>
+                    {rel.description && <span className="ml-1 text-gray-500">({rel.description})</span>}
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Relationship {index + 1}: {rel.from} connects to {rel.to}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default function ProblemSolver({
   projectData,
@@ -19,10 +131,18 @@ export default function ProblemSolver({
   toolContext?: AssistantData | null;
   initialMessage?: string | null;
 }) {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(() => loadFromStorage(STORAGE_KEYS.messages, []));
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [projectId, setProjectId] = useState<string | null>(null);
+
+  // Save messages to localStorage when they change
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.messages, JSON.stringify(messages));
+    }
+  }, [messages]);
 
   useEffect(() => {
     const chatContainer = document.querySelector(".overflow-y-auto");
@@ -30,6 +150,14 @@ export default function ProblemSolver({
       chatContainer.scrollTop = chatContainer.scrollHeight;
     }
   }, [messages]);
+
+  // Clear messages when project changes to avoid mixing conversations
+  useEffect(() => {
+    if (projectData?.id && projectData.id !== projectId) {
+      setProjectId(projectData.id);
+      setMessages([]);
+    }
+  }, [projectData?.id, projectId]);
 
   useEffect(() => {
     if (initialMessage && messages.length === 0) {
@@ -85,7 +213,7 @@ export default function ProblemSolver({
         },
       ]);
     }
-  }, [projectData, initialMessage]);
+  }, [projectData, initialMessage, messages.length]);
 
   useEffect(() => {
     if (toolContext) {
@@ -354,15 +482,13 @@ ${projectContextInfo}
                   message.role === "user" ? "bg-gray-100" : "bg-gray-300"
                 } text-gray-800 ${message.role === "user" ? "ml-auto text-left" : "mr-auto"} max-w-[80%]`}
               >
-                <ReactMarkdown
-                  components={{
-                    div: ({ children }) => (
-                      <div className="prose prose-sm max-w-none">{children}</div>
-                    ),
-                  }}
-                >
-                  {message.content}
-                </ReactMarkdown>
+                {message.role === "assistant" ? (
+                  <MessageWithRelationships content={message.content} />
+                ) : (
+                  <ReactMarkdown>
+                    {message.content}
+                  </ReactMarkdown>
+                )}
               </div>
             </div>
           ))}

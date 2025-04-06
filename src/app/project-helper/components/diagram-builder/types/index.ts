@@ -8,6 +8,8 @@ export interface DiagramBuilderProps {
     grade?: string;
     projectDomain?: string;
     projectId?: string;
+    id?: string;
+    name?: string;
     nodes: Node[];
     edges: Edge[];
   };
@@ -20,12 +22,14 @@ export interface DiagramBuilderProps {
     duration?: string;
   } | null;
   onAssistantData: (data: AssistantDataFromPage) => void;
-  onSave?: (data: { nodes: Node[]; edges: Edge[] }) => void;
+  onSave?: (data: { nodes: Node[]; edges: Edge[]; name?: string; description?: string; projectId?: string; diagramType?: string; id?: string }) => void;
   onExport?: (data: { nodes: Node[]; edges: Edge[] }) => void;
   onClear?: () => void;
   onShowHistory?: () => void;
   onShowComments?: () => void;
   templateType?: 'flowchart' | 'mindmap' | 'businessCanvas' | 'leanCanvas';
+  isFullScreen?: boolean;
+  onToggleFullScreen?: () => void;
 }
 
 export interface AssistantDataFromPage {
@@ -107,7 +111,7 @@ export interface FlowNodeData {
 export interface ShapeNodeData {
   label?: string;
   text?: string;
-  shape?: 'rectangle' | 'circle' | 'triangle' | 'diamond';
+  shape?: 'rectangle' | 'circle' | 'triangle' | 'diamond' | 'cylinder' | 'process';
   color?: string;
   borderColor?: string;
   fontSize?: number;

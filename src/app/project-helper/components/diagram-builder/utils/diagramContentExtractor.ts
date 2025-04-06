@@ -53,12 +53,18 @@ export function extractDiagramContent(nodes: Node[], edges: Edge[]): string {
       if (sourceNode && targetNode) {
         const sourceLabel = getNodeLabel(sourceNode);
         const targetLabel = getNodeLabel(targetNode);
+        const sourceType = formatNodeTypeName(sourceNode.type || 'unknown');
+        const targetType = formatNodeTypeName(targetNode.type || 'unknown');
         
-        output += `- ${sourceLabel} → ${targetLabel}`;
+        // Use explicit relationship verbs to help the assistant identify relationships
+        // These will be picked up by the relationship detection in the ProblemSolver
+        const relationship = chooseRelationshipVerb(sourceNode.type, targetNode.type);
+        
+        output += `- ${sourceLabel} (${sourceType}) ${relationship} ${targetLabel} (${targetType})`;
         if (edge.label) {
-          output += ` (${edge.label})`;
+          output += ` for ${edge.label}`;
         }
-        output += '\n';
+        output += '.\n';
       }
     });
   }
@@ -242,6 +248,26 @@ export function extractSpecificGoalsFromNodes(nodes: Node[]): string[] {
     }
   });
   
-  // Filter out empty strings and duplicates
-  return [...new Set(goals.filter(goal => goal.trim().length > 0))];
+  // Filter to ensure non-empty goals
+  const filteredGoals = goals.filter(goal => goal.trim().length > 0);
+  
+  // Use Array.from to convert Set to array (avoids iteration issues)
+  return Array.from(new Set(filteredGoals));
+}
+
+// Helper function to choose appropriate relationship verbs based on node types
+function chooseRelationshipVerb(sourceType?: string, targetType?: string): string {
+  // If either type is undefined, default to "connects to"
+  if (!sourceType || !targetType) return "connects to";
+  
+  // Based on the source and target types, choose an appropriate verb
+  if (sourceType === "flowNode" && targetType === "flowNode") return "flows to";
+  if (sourceType === "codeNode" && targetType === "codeNode") return "references";
+  if (sourceType === "databaseNode") return "links to";
+  if (targetType === "databaseNode") return "stores data in";
+  if (sourceType === "mindMapNode") return "links conceptually to";
+  if (sourceType === "shapeNode" && targetType === "textNode") return "is described by";
+  
+  // Default relationship
+  return "connects to";
 }

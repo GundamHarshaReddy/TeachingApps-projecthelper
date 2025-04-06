@@ -14,22 +14,43 @@ interface ProjectFormData {
   projectName: string;
   grade: string;
   projectDomain: string;
-  description: string;
+  subject: string;
+  interests: string; 
+  toolsOrSkills: string;
+  skillLevel: string;
+  targetAudience: string;
 }
 
 interface FormErrors {
   projectName?: string;
   grade?: string;
   projectDomain?: string;
-  description?: string;
+  subject?: string;
+  interests?: string;
+  toolsOrSkills?: string;
+  skillLevel?: string;
+  targetAudience?: string;
 }
 
 const initialFormData: ProjectFormData = {
   projectName: "",
   grade: "",
   projectDomain: "",
-  description: ""
+  subject: "",
+  interests: "",
+  toolsOrSkills: "",
+  skillLevel: "intermediate",
+  targetAudience: ""
 };
+
+function getOrdinalSuffix(num: number): string {
+  const j = num % 10;
+  const k = num % 100;
+  if (j === 1 && k !== 11) { return "st"; }
+  if (j === 2 && k !== 12) { return "nd"; }
+  if (j === 3 && k !== 13) { return "rd"; }
+  return "th";
+}
 
 export default function CreateProject() {
   const router = useRouter();
@@ -90,8 +111,8 @@ export default function CreateProject() {
       isValid = false;
     }
 
-    if (!formData.description.trim()) {
-      newErrors.description = "Project description is required";
+    if (!formData.subject.trim()) {
+      newErrors.subject = "Subject is required";
       isValid = false;
     }
 
@@ -102,7 +123,6 @@ export default function CreateProject() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate form before submission
     if (!validateForm()) {
       return;
     }
@@ -111,15 +131,17 @@ export default function CreateProject() {
     setServerError(null);
 
     try {
-      // Submit data to Supabase using server action
       const projectId = await createProjectInDB({
         projectName: formData.projectName,
         grade: formData.grade,
         projectDomain: formData.projectDomain,
-        description: formData.description
+        subject: formData.subject,
+        interests: formData.interests,
+        toolsOrSkills: formData.toolsOrSkills,
+        skillLevel: formData.skillLevel,
+        targetAudience: formData.targetAudience
       });
       
-      // Navigate to tools page with project ID
       router.push(`/project-helper/tools?projectId=${projectId}`);
     } catch (err) {
       setServerError("Failed to create project. Please try again.");
@@ -163,14 +185,14 @@ export default function CreateProject() {
                 required
               >
                 <SelectTrigger id="grade" className={errors.grade ? "border-red-500" : ""}>
-                  <SelectValue placeholder="Select a grade level" />
+                  <SelectValue placeholder="Select grade level" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="elementary">Elementary School</SelectItem>
-                  <SelectItem value="middle">Middle School</SelectItem>
-                  <SelectItem value="high">High School</SelectItem>
-                  <SelectItem value="college">College</SelectItem>
-                  <SelectItem value="professional">Professional</SelectItem>
+                  {[...Array(12)].map((_, i) => (
+                    <SelectItem key={i} value={`${i + 1}`}>
+                      {`${i + 1}${getOrdinalSuffix(i + 1)} Grade`}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               {errors.grade && (
@@ -204,19 +226,85 @@ export default function CreateProject() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description" className="text-base">Project Description</Label>
-              <Textarea
-                id="description"
-                name="description"
-                value={formData.description}
+              <Label htmlFor="subject" className="text-base">Subject</Label>
+              <Input
+                id="subject"
+                name="subject"
+                value={formData.subject}
                 onChange={handleChange}
-                placeholder="Describe your project and goals"
-                rows={4}
-                className={errors.description ? "border-red-500" : ""}
+                placeholder="e.g., Computer Science, Biology, Literature"
+                className={errors.subject ? "border-red-500" : ""}
                 required
               />
-              {errors.description && (
-                <p className="text-red-500 text-sm mt-1">{errors.description}</p>
+              {errors.subject && (
+                <p className="text-red-500 text-sm mt-1">{errors.subject}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="interests" className="text-base">Interests or Topic</Label>
+              <Input
+                id="interests"
+                name="interests"
+                value={formData.interests}
+                onChange={handleChange}
+                placeholder="Specific interests or topics related to this project"
+                className={errors.interests ? "border-red-500" : ""}
+              />
+              {errors.interests && (
+                <p className="text-red-500 text-sm mt-1">{errors.interests}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="toolsOrSkills" className="text-base">Tools or Skills Known</Label>
+              <Input
+                id="toolsOrSkills"
+                name="toolsOrSkills"
+                value={formData.toolsOrSkills}
+                onChange={handleChange}
+                placeholder="Tools, technologies or skills relevant to this project"
+                className={errors.toolsOrSkills ? "border-red-500" : ""}
+              />
+              {errors.toolsOrSkills && (
+                <p className="text-red-500 text-sm mt-1">{errors.toolsOrSkills}</p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="skillLevel" className="text-base">Skill Level</Label>
+                <Select
+                  value={formData.skillLevel}
+                  onValueChange={(value) => handleSelectChange("skillLevel", value)}
+                >
+                  <SelectTrigger id="skillLevel" className={errors.skillLevel ? "border-red-500" : ""}>
+                    <SelectValue placeholder="Select skill level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="beginner">Beginner</SelectItem>
+                    <SelectItem value="intermediate">Intermediate</SelectItem>
+                    <SelectItem value="advanced">Advanced</SelectItem>
+                  </SelectContent>
+                </Select>
+                {errors.skillLevel && (
+                  <p className="text-red-500 text-sm mt-1">{errors.skillLevel}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="targetAudience" className="text-base">Target Audience</Label>
+              <Input
+                id="targetAudience"
+                name="targetAudience"
+                value={formData.targetAudience}
+                onChange={handleChange}
+                placeholder="Who is this project intended for?"
+                className={errors.targetAudience ? "border-red-500" : ""}
+              />
+              {errors.targetAudience && (
+                <p className="text-red-500 text-sm mt-1">{errors.targetAudience}</p>
               )}
             </div>
 

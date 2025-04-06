@@ -40,6 +40,15 @@ export interface DiagramBuilderProps {
   diagramData?: DiagramData;
   projectData?: ProjectData;
   onAssistantData: (data: AssistantData) => void;
+  onSave?: (data: any) => void;
+  onExport?: (data: any) => void;
+  onClear?: () => void;
+  onShowHistory?: () => void;
+  onShowComments?: () => void;
+  templateType?: string;
+  isFullScreen?: boolean;
+  onToggleFullScreen?: () => void;
+  onUpdate?: (data: any) => void;
 }
 
 export interface CommentData {

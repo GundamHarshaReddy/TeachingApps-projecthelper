@@ -170,6 +170,21 @@ export const ShapeNode: React.FC<ShapeNodeProps> = ({
       opacity: 0.6,
     };
 
+    // Common handles for all shapes
+    const renderHandles = () => (
+      <>
+        <Handle type="source" position={Position.Top} id="handle-top" style={{ background: '#6366f1', width: 10, height: 10, opacity: 0.8 }} isConnectable={true} />
+        <Handle type="source" position={Position.Bottom} id="handle-bottom" style={{ background: '#6366f1', width: 10, height: 10, opacity: 0.8 }} isConnectable={true} />
+        <Handle type="source" position={Position.Left} id="handle-left" style={{ background: '#6366f1', width: 10, height: 10, opacity: 0.8 }} isConnectable={true} />
+        <Handle type="source" position={Position.Right} id="handle-right" style={{ background: '#6366f1', width: 10, height: 10, opacity: 0.8 }} isConnectable={true} />
+        
+        <Handle type="target" position={Position.Top} id="handle-top" style={{ background: '#6366f1', width: 10, height: 10, opacity: 0.3 }} isConnectable={true} />
+        <Handle type="target" position={Position.Bottom} id="handle-bottom" style={{ background: '#6366f1', width: 10, height: 10, opacity: 0.3 }} isConnectable={true} />
+        <Handle type="target" position={Position.Left} id="handle-left" style={{ background: '#6366f1', width: 10, height: 10, opacity: 0.3 }} isConnectable={true} />
+        <Handle type="target" position={Position.Right} id="handle-right" style={{ background: '#6366f1', width: 10, height: 10, opacity: 0.3 }} isConnectable={true} />
+      </>
+    );
+
     switch (data.shape) {
       case 'circle':
         return (
@@ -178,18 +193,7 @@ export const ShapeNode: React.FC<ShapeNodeProps> = ({
             className={`${commonClasses} rounded-full border`}
             style={{ ...baseStyle, width: `${Math.min(nodeWidth, nodeHeight)}px`, height: `${Math.min(nodeWidth, nodeHeight)}px` }}
           >
-            {/* Bidirectional handles - can be used as both source and target */}
-            <Handle type="source" position={Position.Top} id="handle-top" style={{ background: '#6366f1', width: 10, height: 10, opacity: 0.8 }} isConnectable={true} />
-            <Handle type="source" position={Position.Bottom} id="handle-bottom" style={{ background: '#6366f1', width: 10, height: 10, opacity: 0.8 }} isConnectable={true} />
-            <Handle type="source" position={Position.Left} id="handle-left" style={{ background: '#6366f1', width: 10, height: 10, opacity: 0.8 }} isConnectable={true} />
-            <Handle type="source" position={Position.Right} id="handle-right" style={{ background: '#6366f1', width: 10, height: 10, opacity: 0.8 }} isConnectable={true} />
-            
-            {/* Same handles but as targets with lower opacity */}
-            <Handle type="target" position={Position.Top} id="handle-top" style={{ background: '#6366f1', width: 10, height: 10, opacity: 0.3 }} isConnectable={true} />
-            <Handle type="target" position={Position.Bottom} id="handle-bottom" style={{ background: '#6366f1', width: 10, height: 10, opacity: 0.3 }} isConnectable={true} />
-            <Handle type="target" position={Position.Left} id="handle-left" style={{ background: '#6366f1', width: 10, height: 10, opacity: 0.3 }} isConnectable={true} />
-            <Handle type="target" position={Position.Right} id="handle-right" style={{ background: '#6366f1', width: 10, height: 10, opacity: 0.3 }} isConnectable={true} />
-
+            {renderHandles()}
             {renderTextContent()}
           </div>
         );
@@ -197,29 +201,19 @@ export const ShapeNode: React.FC<ShapeNodeProps> = ({
         return (
           <div 
              ref={shapeRef}
-             className="relative border border-transparent"
-             style={{ ...baseStyle, background: 'none', width: `${nodeWidth}px`, height: `${nodeHeight}px` }}
+             className="relative"
+             style={{ ...baseStyle, background: 'none', borderColor: 'transparent' }}
           >
-            <Handle type="source" position={Position.Top} id="handle-top" style={{ ...handleStyle, top: '0%', background: '#6366f1', opacity: 0.8 }} isConnectable={true} />
-            <Handle type="source" position={Position.Bottom} id="handle-bottom-left" style={{ ...handleStyle, left: '5%', background: '#6366f1', opacity: 0.8 }} isConnectable={true} />
-            <Handle type="source" position={Position.Bottom} id="handle-bottom-right" style={{ ...handleStyle, right: '5%', background: '#6366f1', opacity: 0.8 }} isConnectable={true} />
-            <Handle type="target" position={Position.Top} id="handle-top" style={{ ...targetStyle, top: '0%', background: '#6366f1', opacity: 0.3 }} isConnectable={true} />
-            <Handle type="target" position={Position.Bottom} id="handle-bottom-left" style={{ ...targetStyle, left: '5%', background: '#6366f1', opacity: 0.3 }} isConnectable={true} />
-            <Handle type="target" position={Position.Bottom} id="handle-bottom-right" style={{ ...targetStyle, right: '5%', background: '#6366f1', opacity: 0.3 }} isConnectable={true} />
+            {renderHandles()}
             <div
-              className={`${commonClasses} absolute`} 
+              className={`${commonClasses} absolute inset-0`} 
               style={{
-                width: 0, 
-                height: 0, 
-                left: '50%',
-                top: '50%',
-                transform: 'translate(-50%, -50%)',
-                borderLeft: `${nodeWidth / 2}px solid transparent`,
-                borderRight: `${nodeWidth / 2}px solid transparent`,
-                borderBottom: `${nodeHeight}px solid ${data.color || '#ffffff'}`,
+                clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)',
+                backgroundColor: data.color || '#ffffff',
+                border: `1px solid ${data.borderColor || '#cccccc'}`,
               }}
             />
-            <div className="absolute inset-0 flex items-center justify-center"> 
+            <div className="absolute inset-0 flex items-center justify-center pt-4"> 
               {renderTextContent()}
             </div>
           </div>
@@ -228,40 +222,82 @@ export const ShapeNode: React.FC<ShapeNodeProps> = ({
         return (
           <div 
             ref={shapeRef}
-            className={`${commonClasses} border`} 
-             style={{ ...baseStyle, width: `${nodeWidth}px`, height: `${nodeHeight}px` }}
+            className={`${commonClasses}`} 
+            style={baseStyle}
           >
+            {renderHandles()}
             <div 
-               className="absolute inset-0 transform rotate-45 bg-inherit border-inherit"
-               style={{ backgroundColor: data.color || '#ffffff', borderColor: data.borderColor || '#cccccc' }} />
-            <Handle type="source" position={Position.Top} id="handle-top" style={handleStyle} isConnectable={true} />
-            <Handle type="source" position={Position.Bottom} id="handle-bottom" style={handleStyle} isConnectable={true} />
-            <Handle type="source" position={Position.Left} id="handle-left" style={handleStyle} isConnectable={true} />
-            <Handle type="source" position={Position.Right} id="handle-right" style={handleStyle} isConnectable={true} />
-            <Handle type="target" position={Position.Top} id="handle-top" style={targetStyle} isConnectable={true} />
-            <Handle type="target" position={Position.Bottom} id="handle-bottom" style={targetStyle} isConnectable={true} />
-            <Handle type="target" position={Position.Left} id="handle-left" style={targetStyle} isConnectable={true} />
-            <Handle type="target" position={Position.Right} id="handle-right" style={targetStyle} isConnectable={true} />
+              className="absolute inset-0 border"
+              style={{ 
+                backgroundColor: data.color || '#ffffff', 
+                borderColor: data.borderColor || '#cccccc',
+                clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)'
+              }} 
+            />
             <div className="absolute inset-0 flex items-center justify-center">
-               {renderTextContent()}
-             </div>
+              {renderTextContent()}
+            </div>
           </div>
         );
-      default:
+      case 'cylinder':
+        return (
+          <div 
+            ref={shapeRef}
+            className={commonClasses}
+            style={baseStyle}
+          >
+            {renderHandles()}
+            <div className="absolute inset-0 flex flex-col">
+              {/* Top ellipse */}
+              <div 
+                className="h-[15%] relative border-t border-l border-r rounded-t-full"
+                style={{ 
+                  backgroundColor: data.color || '#ffffff',
+                  borderColor: data.borderColor || '#cccccc'
+                }}
+              />
+              {/* Middle section */}
+              <div 
+                className="flex-grow border-l border-r"
+                style={{ 
+                  backgroundColor: data.color || '#ffffff',
+                  borderColor: data.borderColor || '#cccccc'
+                }}
+              />
+              {/* Bottom ellipse */}
+              <div 
+                className="h-[15%] relative border-b border-l border-r rounded-b-full"
+                style={{ 
+                  backgroundColor: data.color || '#ffffff',
+                  borderColor: data.borderColor || '#cccccc'
+                }}
+              />
+            </div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              {renderTextContent()}
+            </div>
+          </div>
+        );
+      case 'process':
         return (
           <div 
             ref={shapeRef}
             className={`${commonClasses} rounded-md border`}
             style={baseStyle}
           >
-            <Handle type="source" position={Position.Top} id="handle-top" style={handleStyle} isConnectable={true} />
-            <Handle type="source" position={Position.Bottom} id="handle-bottom" style={handleStyle} isConnectable={true} />
-            <Handle type="source" position={Position.Left} id="handle-left" style={handleStyle} isConnectable={true} />
-            <Handle type="source" position={Position.Right} id="handle-right" style={handleStyle} isConnectable={true} />
-            <Handle type="target" position={Position.Top} id="handle-top" style={targetStyle} isConnectable={true} />
-            <Handle type="target" position={Position.Bottom} id="handle-bottom" style={targetStyle} isConnectable={true} />
-            <Handle type="target" position={Position.Left} id="handle-left" style={targetStyle} isConnectable={true} />
-            <Handle type="target" position={Position.Right} id="handle-right" style={targetStyle} isConnectable={true} />
+            {renderHandles()}
+            {renderTextContent()}
+          </div>
+        );
+      case 'rectangle':
+      default:
+        return (
+          <div 
+            ref={shapeRef}
+            className={`${commonClasses} border`}
+            style={baseStyle}
+          >
+            {renderHandles()}
             {renderTextContent()}
           </div>
         );

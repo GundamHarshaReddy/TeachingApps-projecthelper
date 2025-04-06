@@ -137,6 +137,7 @@ export async function getPlannerById(plannerId: string) {
 
 export async function deletePlannerById(plannerId: string) {
   try {
+    console.log(`[deletePlannerById] Attempting to delete planner with ID: ${plannerId}`);
     const supabase = getSupabaseClient();
 
     const { error } = await supabase
@@ -144,10 +145,15 @@ export async function deletePlannerById(plannerId: string) {
       .delete()
       .eq('id', plannerId);
 
-    if (error) throw new Error(`Error deleting planner: ${error.message}`);
+    if (error) {
+      console.error(`[deletePlannerById] Database error:`, error);
+      return false;
+    }
+    
+    console.log(`[deletePlannerById] Successfully deleted planner with ID: ${plannerId}`);
     return true;
   } catch (err) {
-    console.error('Error in deletePlannerById:', err);
-    throw err;
+    console.error('[deletePlannerById] Error:', err);
+    return false;
   }
 } 

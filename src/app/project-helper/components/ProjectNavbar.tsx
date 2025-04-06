@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { Button } from "./ui/button";
-import { PlusIcon, ChevronLeftIcon, HomeIcon } from "lucide-react";
+import { PlusIcon, HomeIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 interface Project {
   id: string;
@@ -13,34 +14,21 @@ interface Project {
 
 interface ProjectNavbarProps {
   project?: Project | null;
-  showBack?: boolean;
   showHome?: boolean;
   showNewProject?: boolean;
+  backUrl?: string;
 }
 
 export default function ProjectNavbar({
   project = null,
-  showBack = true,
   showHome = true,
   showNewProject = true,
 }: ProjectNavbarProps) {
+  const router = useRouter();
+  
   return (
     <div className="flex items-center justify-between border-b pb-4 mb-8">
       <div className="flex items-center gap-4">
-        {showBack && (
-          <Button
-            asChild
-            variant="ghost"
-            size="sm"
-            className="text-gray-500 hover:text-gray-700"
-          >
-            <Link href="/project-helper">
-              <ChevronLeftIcon className="h-4 w-4 mr-1" />
-              Back
-            </Link>
-          </Button>
-        )}
-        
         {showHome && (
           <Button
             asChild

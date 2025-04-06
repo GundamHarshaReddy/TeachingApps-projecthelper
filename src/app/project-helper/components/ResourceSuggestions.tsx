@@ -17,8 +17,10 @@ import {
   SelectValue,
 } from "../components/ui/select";
 import { Alert, AlertDescription } from "../components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, ChevronLeftIcon } from "lucide-react";
 import type { Resource, ResourceData, ProjectAssistantData } from "../types";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 function getOrdinalSuffix(num: number): string {
   const j = num % 10;
@@ -35,6 +37,38 @@ function getOrdinalSuffix(num: number): string {
   return "th";
 }
 
+// Define storage keys
+const STORAGE_KEYS = {
+  topic: "resources_topic",
+  specificGoals: "resources_specificGoals",
+  timeAvailable: "resources_timeAvailable",
+  grade: "resources_grade",
+  projectDomain: "resources_projectDomain",
+  resources: "resources_list",
+};
+
+// Helper function to load state from sessionStorage
+const loadFromStorage = (key: string, defaultValue: any) => {
+  if (typeof window === 'undefined') return defaultValue;
+  try {
+    const item = sessionStorage.getItem(key);
+    return item ? JSON.parse(item) : defaultValue;
+  } catch (error) {
+    console.error(`Error loading ${key} from sessionStorage:`, error);
+    return defaultValue;
+  }
+};
+
+// Helper function to save state to sessionStorage
+const saveToStorage = (key: string, value: any) => {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    console.error(`Error saving ${key} to sessionStorage:`, error);
+  }
+};
+
 interface ResourceSuggestionsProps {
   resourceData?: ResourceData;
   onProjectAssistant: (data: ProjectAssistantData) => void;
@@ -44,49 +78,65 @@ export default function ResourceSuggestions({
   resourceData,
   onProjectAssistant,
 }: ResourceSuggestionsProps) {
-  const [topic, setTopic] = useState("");
-  const [specificGoals, setSpecificGoals] = useState("");
-  const [timeAvailable, setTimeAvailable] = useState("");
-  const [resources, setResources] = useState<Resource[]>([]);
+  const router = useRouter();
+  
+  // Initialize state from sessionStorage with fallback to props
+  const [topic, setTopic] = useState(() => loadFromStorage(STORAGE_KEYS.topic, resourceData?.projectName || ""));
+  const [specificGoals, setSpecificGoals] = useState(() => loadFromStorage(STORAGE_KEYS.specificGoals, resourceData?.projectDescription || ""));
+  const [timeAvailable, setTimeAvailable] = useState(() => loadFromStorage(STORAGE_KEYS.timeAvailable, resourceData?.duration || ""));
+  const [resources, setResources] = useState<Resource[]>(() => loadFromStorage(STORAGE_KEYS.resources, []));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [grade, setGrade] = useState("");
-  const [projectDomain, setProjectDomain] = useState("technical");
-  const [dataLoaded, setDataLoaded] = useState(false);
+  const [grade, setGrade] = useState(() => loadFromStorage(STORAGE_KEYS.grade, resourceData?.grade || ""));
+  const [projectDomain, setProjectDomain] = useState(() => loadFromStorage(STORAGE_KEYS.projectDomain, resourceData?.projectDomain || "technical"));
   const [saveError, setSaveError] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [editedResources, setEditedResources] = useState("");
-
+  
+  // Save state to sessionStorage whenever it changes
   useEffect(() => {
-    if (resourceData) {
+    saveToStorage(STORAGE_KEYS.topic, topic);
+    saveToStorage(STORAGE_KEYS.specificGoals, specificGoals);
+    saveToStorage(STORAGE_KEYS.timeAvailable, timeAvailable);
+    saveToStorage(STORAGE_KEYS.grade, grade);
+    saveToStorage(STORAGE_KEYS.projectDomain, projectDomain);
+    saveToStorage(STORAGE_KEYS.resources, resources);
+  }, [topic, specificGoals, timeAvailable, grade, projectDomain, resources]);
+
+  // Add effect to handle page visibility change (user returning via back button)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // User has returned to this page - no need to reload data as it's already in state
+        // and we're using sessionStorage which persists during the session
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
+  // Load data from resourceData once if provided
+  useEffect(() => {
+    if (resourceData && !loadFromStorage(STORAGE_KEYS.topic, "")) {
+      // Only load from props if sessionStorage is empty (first load)
       setTopic(resourceData.projectName || "");
       setSpecificGoals(resourceData.projectDescription || "");
       setTimeAvailable(resourceData.duration || "");
       setGrade(resourceData.grade || "");
       setProjectDomain(resourceData.projectDomain || "technical");
-      setDataLoaded(true);
+      
+      // Save to storage immediately
+      saveToStorage(STORAGE_KEYS.topic, resourceData.projectName || "");
+      saveToStorage(STORAGE_KEYS.specificGoals, resourceData.projectDescription || "");
+      saveToStorage(STORAGE_KEYS.timeAvailable, resourceData.duration || "");
+      saveToStorage(STORAGE_KEYS.grade, resourceData.grade || "");
+      saveToStorage(STORAGE_KEYS.projectDomain, resourceData.projectDomain || "technical");
     }
-  }, [resourceData]);
-
-  useEffect(() => {
-    if (
-      dataLoaded &&
-      topic &&
-      specificGoals &&
-      timeAvailable &&
-      grade &&
-      projectDomain
-    ) {
-      handleGenerateResources(
-        topic,
-        specificGoals,
-        timeAvailable,
-        grade,
-        projectDomain
-      );
-      setDataLoaded(false);
-    }
-  }, [dataLoaded, grade, topic, specificGoals, timeAvailable, projectDomain]);
+  }, [resourceData]); // Only depend on resourceData prop
 
   const validateInputs = () => {
     return Boolean(
@@ -116,11 +166,10 @@ export default function ResourceSuggestions({
       setResources([]);
 
       const generatedResources = await generateResources(
-        topicValue,
         goalsValue,
-        timeValue,
+        domainValue,
         gradeValue,
-        domainValue
+        timeValue
       );
 
       if (
@@ -224,161 +273,167 @@ export default function ResourceSuggestions({
   };
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="topic">Topic</Label>
-          <Input
-            id="topic"
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            placeholder="Enter a topic for resource suggestions"
-            required
-          />
-        </div>
-        <div>
-          <Label htmlFor="projectDomain">Project Domain</Label>
-          <Select value={projectDomain} onValueChange={setProjectDomain}>
-            <SelectTrigger id="projectDomain">
-              <SelectValue placeholder="Select project domain" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="technical">Technical</SelectItem>
-              <SelectItem value="non-technical">Non-Technical</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label htmlFor="timeAvailable">Time Available for Learning</Label>
-          <Input
-            id="timeAvailable"
-            value={timeAvailable}
-            onChange={(e) => setTimeAvailable(e.target.value)}
-            placeholder="e.g., 1 day, 1 week"
-            required
-          />
-        </div>
-        <div>
-          <Label htmlFor="grade">Grade Level</Label>
-          <Select value={grade} onValueChange={setGrade}>
-            <SelectTrigger id="grade">
-              <SelectValue placeholder="Select grade level" />
-            </SelectTrigger>
-            <SelectContent>
-              {[...Array(12)].map((_, i) => (
-                <SelectItem key={i} value={`${i + 1}`}>
-                  {`${i + 1}${getOrdinalSuffix(i + 1)} Grade`}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-      <div>
-        <Label htmlFor="specificGoals">Specific Learning Goals</Label>
-        <Textarea
-          id="specificGoals"
-          value={specificGoals}
-          onChange={(e) => setSpecificGoals(e.target.value)}
-          placeholder="Describe what you want to learn or achieve"
-          className="h-24"
-          required
-        />
-      </div>
-      <Button
-        onClick={() =>
-          handleGenerateResources(
-            topic,
-            specificGoals,
-            timeAvailable,
-            grade,
-            projectDomain
-          )
-        }
-        disabled={loading}
-        className="w-full"
-      >
-        {loading ? "Generating Resources..." : "Get Resource Suggestions"}
-      </Button>
+    <div>
+      {/* Removed back button */}
 
-      {error && (
-        <Alert variant="destructive" className="mt-4">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
-      {resources.length > 0 && (
-        <Card className="mt-6">
-          <CardContent className="p-4">
-            <h3 className="font-bold text-lg mb-4">Suggested Resources:</h3>
-            {isEditing ? (
-              <Textarea
-                value={editedResources}
-                onChange={(e) => setEditedResources(e.target.value)}
-                className="w-full h-64 p-2 border rounded font-mono text-sm"
-              />
-            ) : (
-              <ul className="space-y-6">
-                {resources.map((resource, index) => (
-                  <li key={index} className="border-b pb-4 last:border-b-0">
-                    <a
-                      href={resource.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-lg font-semibold text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-                    >
-                      {resource.title}
-                    </a>
-                    <p className="mt-2 text-gray-600 dark:text-gray-300">
-                      {resource.description}
-                    </p>
-                  </li>
+      <h2 className="text-2xl font-bold mb-4">Resource Suggestions</h2>
+      
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="topic">Topic</Label>
+            <Input
+              id="topic"
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+              placeholder="Enter a topic for resource suggestions"
+              required
+            />
+          </div>
+          <div>
+            <Label htmlFor="projectDomain">Project Domain</Label>
+            <Select value={projectDomain} onValueChange={setProjectDomain}>
+              <SelectTrigger id="projectDomain">
+                <SelectValue placeholder="Select project domain" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="technical">Technical</SelectItem>
+                <SelectItem value="non-technical">Non-Technical</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="timeAvailable">Time Available for Learning</Label>
+            <Input
+              id="timeAvailable"
+              value={timeAvailable}
+              onChange={(e) => setTimeAvailable(e.target.value)}
+              placeholder="e.g., 1 day, 1 week"
+              required
+            />
+          </div>
+          <div>
+            <Label htmlFor="grade">Grade Level</Label>
+            <Select value={grade} onValueChange={setGrade}>
+              <SelectTrigger id="grade">
+                <SelectValue placeholder="Select grade level" />
+              </SelectTrigger>
+              <SelectContent>
+                {[...Array(12)].map((_, i) => (
+                  <SelectItem key={i} value={`${i + 1}`}>
+                    {`${i + 1}${getOrdinalSuffix(i + 1)} Grade`}
+                  </SelectItem>
                 ))}
-              </ul>
-            )}
-            <div className="flex justify-between items-center mt-6 space-x-2">
-              <Button
-                onClick={handleProjectAssistant}
-                disabled={loading || resources.length === 0}
-                className="bg-pink-600 hover:bg-pink-700 text-white"
-              >
-                {loading ? "Loading..." : "Continue to Diagram Builder"}
-              </Button>
-              <Button
-                onClick={handleSaveResources}
-                disabled={resources.length === 0 || loading}
-              >
-                {loading ? "Saving..." : "Save Resources"}
-              </Button>
-              <Button onClick={handleEditToggle}>
-                {isEditing ? "Save Changes" : "Edit"}
-              </Button>
-              <PdfDownloadButton
-                projectName={topic}
-                content={[
-                  { title: "Learning Goals", text: specificGoals },
-                  {
-                    title: "Resources",
-                    text: resources
-                      .map(
-                        (resource) =>
-                          `## [${resource.title}](${resource.url})\n${resource.description}`
-                      )
-                      .join("\n\n"),
-                  },
-                ]}
-              />
-            </div>
-          </CardContent>
-        </Card>
-      )}
-      {saveError && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{saveError}</AlertDescription>
-        </Alert>
-      )}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div>
+          <Label htmlFor="specificGoals">Specific Learning Goals</Label>
+          <Textarea
+            id="specificGoals"
+            value={specificGoals}
+            onChange={(e) => setSpecificGoals(e.target.value)}
+            placeholder="Describe what you want to learn or achieve"
+            className="h-24"
+            required
+          />
+        </div>
+        <Button
+          onClick={() =>
+            handleGenerateResources(
+              topic,
+              specificGoals,
+              timeAvailable,
+              grade,
+              projectDomain
+            )
+          }
+          disabled={loading}
+          className="w-full"
+        >
+          {loading ? "Generating Resources..." : "Get Resource Suggestions"}
+        </Button>
+
+        {error && (
+          <Alert variant="destructive" className="mt-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {resources.length > 0 && (
+          <Card className="mt-6">
+            <CardContent className="p-4">
+              <h3 className="font-bold text-lg mb-4">Suggested Resources:</h3>
+              {isEditing ? (
+                <Textarea
+                  value={editedResources}
+                  onChange={(e) => setEditedResources(e.target.value)}
+                  className="w-full h-64 p-2 border rounded font-mono text-sm"
+                />
+              ) : (
+                <ul className="space-y-6">
+                  {resources.map((resource, index) => (
+                    <li key={index} className="border-b pb-4 last:border-b-0">
+                      <a
+                        href={resource.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-lg font-semibold text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                      >
+                        {resource.title}
+                      </a>
+                      <p className="mt-2 text-gray-600 dark:text-gray-300">
+                        {resource.description}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div className="flex justify-between items-center mt-6 space-x-2">
+                <Button
+                  onClick={handleProjectAssistant}
+                  disabled={loading || resources.length === 0}
+                  className="bg-pink-600 hover:bg-pink-700 text-white"
+                >
+                  {loading ? "Loading..." : "Continue to Diagram Builder"}
+                </Button>
+                <Button
+                  onClick={handleSaveResources}
+                  disabled={resources.length === 0 || loading}
+                >
+                  {loading ? "Saving..." : "Save Resources"}
+                </Button>
+                <Button onClick={handleEditToggle}>
+                  {isEditing ? "Save Changes" : "Edit"}
+                </Button>
+                <PdfDownloadButton
+                  projectName={topic}
+                  content={[
+                    { title: "Learning Goals", text: specificGoals },
+                    {
+                      title: "Resources",
+                      text: resources
+                        .map(
+                          (resource) =>
+                            `## [${resource.title}](${resource.url})\n${resource.description}`
+                        )
+                        .join("\n\n"),
+                    },
+                  ]}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        {saveError && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{saveError}</AlertDescription>
+          </Alert>
+        )}
+      </div>
     </div>
   );
 }

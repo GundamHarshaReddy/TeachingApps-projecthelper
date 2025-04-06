@@ -15,12 +15,15 @@ import ReactFlow, {
   MarkerType,
   ConnectionMode,
   ConnectionLineType,
+  BackgroundVariant,
+  ReactFlowProvider,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { CanvasNode, FlowNode, ShapeNode, TextNode, ImageNode, CodeNode, DatabaseNode, MindMapNode } from './nodes';
 import { DiagramBuilderProps, ShapeNodeData } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { NodeContextMenu } from './NodeContextMenu';
+import { Info, Fullscreen, Maximize, ZoomIn } from 'lucide-react';
 
 // Define nodeTypes *outside* the component function
 const nodeTypes = {
@@ -61,6 +64,11 @@ interface CanvasProps {
   onRedo: () => void;
   onNodeSelect: (node: Node) => void;
   onNodeDeselect: () => void;
+  settings?: {
+    showMinimap: boolean;
+    showGrid: boolean;
+    snapToGrid: boolean;
+  };
 }
 
 export const Canvas: React.FC<CanvasProps> = ({
@@ -84,12 +92,69 @@ export const Canvas: React.FC<CanvasProps> = ({
   onRedo,
   onNodeSelect,
   onNodeDeselect,
+  settings = { showMinimap: true, showGrid: true, snapToGrid: true },
+}) => {
+  // This wrapper now just renders the ReactFlowProvider and inner component
+  return (
+    <ReactFlowProvider>
+      <CanvasInner 
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onConnect={onConnect}
+        projectData={projectData}
+        triggerUndo={triggerUndo}
+        triggerRedo={triggerRedo}
+        triggerAddNode={triggerAddNode}
+        onNodeResize={onNodeResize}
+        onSave={onSave}
+        onExport={onExport}
+        onClear={onClear}
+        onShowHistory={onShowHistory}
+        onShowComments={onShowComments}
+        updateNodeData={updateNodeData}
+        onUndo={onUndo}
+        onRedo={onRedo}
+        onNodeSelect={onNodeSelect}
+        onNodeDeselect={onNodeDeselect}
+        settings={settings}
+      />
+    </ReactFlowProvider>
+  );
+};
+
+// Inner component that can safely use useReactFlow
+const CanvasInner: React.FC<CanvasProps> = ({
+  nodes,
+  edges,
+  onNodesChange,
+  onEdgesChange,
+  onConnect,
+  projectData,
+  triggerUndo,
+  triggerRedo,
+  triggerAddNode,
+  onNodeResize,
+  onSave,
+  onExport,
+  onClear,
+  onShowHistory,
+  onShowComments,
+  updateNodeData,
+  onUndo,
+  onRedo,
+  onNodeSelect,
+  onNodeDeselect,
+  settings = { showMinimap: true, showGrid: true, snapToGrid: true },
 }) => {
   const reactFlowInstance = useReactFlow();
   const [contextMenu, setContextMenu] = useState<{
     node: Node;
     position: { x: number; y: number };
   } | null>(null);
+  const [showHelp, setShowHelp] = useState(true);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
 
   // Handle node click
   const onNodeClick = useCallback(
@@ -185,58 +250,140 @@ export const Canvas: React.FC<CanvasProps> = ({
     onConnect(connection);
   }, [onConnect, onEdgesChange]);
 
+  // Auto-hide help after 10 seconds
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowHelp(false);
+    }, 10000);
+    
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Add a method to get flow position from client coordinates
+  const getFlowPosition = useCallback((clientX: number, clientY: number) => {
+    const reactFlowBounds = document.querySelector('.react-flow')?.getBoundingClientRect();
+    if (!reactFlowBounds) return { x: 0, y: 0 };
+    
+    const position = reactFlowInstance.project({
+      x: clientX - reactFlowBounds.left,
+      y: clientY - reactFlowBounds.top,
+    });
+    
+    return position;
+  }, [reactFlowInstance]);
+
+  // Add these drag event handlers
+  const handleDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    setIsDraggingOver(true);
+    
+    // Log the data being dragged
+    const nodeType = event.dataTransfer.getData('application/reactflow');
+    if (nodeType) {
+      console.log('[Canvas] Dragging over with node type:', nodeType);
+    }
+  }, []);
+
+  const handleDragLeave = useCallback(() => {
+    setIsDraggingOver(false);
+  }, []);
+
+  // Handle drop to create a new node
+  const handleDrop = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsDraggingOver(false);
+    
+    // Get the node type from the data transfer
+    const nodeType = event.dataTransfer.getData('application/reactflow');
+    console.log('[Canvas] Drop event with node type:', nodeType);
+    
+    if (!nodeType) {
+      console.warn('[Canvas] No node type found in drop event');
+      return;
+    }
+    
+    // Get the flow position for the dropped node
+    const position = getFlowPosition(event.clientX, event.clientY);
+    console.log('[Canvas] Drop position converted:', position);
+    
+    // For debugging, show what we're dropping
+    console.log(`[Canvas] Dropping ${nodeType} at ${position.x},${position.y}`);
+    
+    // Handle shape nodes
+    if (nodeType.startsWith('shape-')) {
+      const shape = nodeType.replace('shape-', '');
+      // Convert to shapeNode:shape format expected by triggerAddNode
+      triggerAddNode(`shapeNode:${shape}`, position);
+    } else {
+      // For non-shape nodes, use the direct node type
+      triggerAddNode(nodeType, position);
+    }
+  }, [getFlowPosition, triggerAddNode]);
+
   return (
-    <div className="w-full h-full" style={{ width: '100%', height: '100vh' }}>
+    <div className="w-full h-full">
       <ReactFlow
         nodes={nodesWithUpdate}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={handleConnect}
+        onNodeClick={onNodeClick}
+        onPaneClick={onPaneClick}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         fitView
-        className="bg-gray-50"
-        style={{ width: '100%', height: '100%' }}
-        connectionMode={ConnectionMode.Loose}
-        defaultEdgeOptions={{
-          type: 'smoothstep',
-          animated: true,
-          style: { stroke: '#555', strokeWidth: 2 },
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-            width: 20,
-            height: 20,
-            color: '#555',
-          },
-        }}
-        onNodeClick={onNodeClick}
-        onPaneClick={onPaneClick}
-        snapToGrid={true}
+        snapToGrid={settings.snapToGrid}
         snapGrid={[15, 15]}
-        defaultViewport={{ x: 0, y: 0, zoom: 1 }}
-        isValidConnection={(connection) => {
-          // Allow any valid connection with source and target
-          return !!connection.source && !!connection.target;
-        }}
+        connectionMode={ConnectionMode.Loose}
+        connectionLineType={ConnectionLineType.SmoothStep}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className={`${isDraggingOver ? 'bg-blue-50' : ''}`}
       >
-        <Background />
-        <Controls />
-        <MiniMap />
-        <Panel position="top-right" className="flex gap-2 bg-white p-1 rounded shadow">
-          <button onClick={triggerUndo} title="Undo (Ctrl+Z)">
-            Undo
-          </button>
-          <button onClick={triggerRedo} title="Redo (Ctrl+Y)">
-            Redo
-          </button>
-        </Panel>
+        {settings.showGrid && (
+          <Background 
+            variant={BackgroundVariant.Dots} 
+            gap={20} 
+            size={1.5} 
+            color="#cccccc" 
+            style={{ opacity: 0.6 }}
+          />
+        )}
+        <Controls 
+          position="bottom-right"
+          showZoom={true}
+          showFitView={true}
+          showInteractive={true}
+          className="bg-white rounded-md shadow-md border border-gray-200"
+        />
+        {settings.showMinimap && (
+          <MiniMap 
+            nodeStrokeWidth={3}
+            zoomable
+            pannable
+            className="bg-white border border-gray-200 rounded-md shadow-md"
+          />
+        )}
         
-        {/* Simple connection instruction */}
-        <Panel position="bottom-left" className="bg-white p-2 rounded shadow mb-4 ml-4 text-xs opacity-80">
-          <div>Drag from any purple dot to connect nodes</div>
-        </Panel>
+        {/* Connection instruction panel */}
+        {showHelp && (
+          <Panel position="bottom-left" className="bg-white p-4 rounded-md shadow-md mb-4 ml-4 text-sm border border-blue-200 bg-blue-50 transition-opacity">
+            <div className="flex items-center">
+              <Info size={20} className="text-blue-500 mr-3" />
+              <div>
+                <div className="font-medium mb-1 text-blue-700 text-base">Quick Help</div>
+                <div className="text-blue-600 mb-1">• Drag elements from the left panel</div>
+                <div className="text-blue-600 mb-1">• Connect nodes by dragging between purple dots</div>
+                <div className="text-blue-600">• Double-click elements to edit content</div>
+              </div>
+            </div>
+          </Panel>
+        )}
       </ReactFlow>
+      
       {contextMenu && (
         <div
           style={{
@@ -245,25 +392,42 @@ export const Canvas: React.FC<CanvasProps> = ({
             top: contextMenu.position.y + 'px',
             zIndex: 1000,
             backgroundColor: 'white',
-            borderRadius: '4px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+            borderRadius: '6px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
             padding: '8px',
             display: 'flex',
             flexDirection: 'column',
-            gap: '4px'
+            gap: '2px',
+            border: '1px solid #e5e7eb',
           }}
         >
           <button
-            className="flex items-center gap-2 px-3 py-1 hover:bg-gray-100 rounded text-sm"
+            className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 rounded text-sm"
             onClick={() => {
               updateNodeData(contextMenu.node.id, { isEditing: true });
               setContextMenu(null);
             }}
           >
-            <span>✏️</span> Edit
+            <span>✏️</span> Edit Node
           </button>
           <button
-            className="flex items-center gap-2 px-3 py-1 hover:bg-gray-100 rounded text-sm text-red-600"
+            className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 rounded text-sm"
+            onClick={() => {
+              // Duplicate the node
+              const newNode = {...contextMenu.node};
+              newNode.id = `${newNode.type}-${uuidv4()}`;
+              newNode.position = {
+                x: contextMenu.node.position.x + 20,
+                y: contextMenu.node.position.y + 20
+              };
+              onNodesChange([{ type: 'add', item: newNode }]);
+              setContextMenu(null);
+            }}
+          >
+            <span>📋</span> Duplicate
+          </button>
+          <button
+            className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 rounded text-sm text-red-600"
             onClick={() => {
               onNodesChange([{ type: 'remove', id: contextMenu.node.id }]);
               setContextMenu(null);
