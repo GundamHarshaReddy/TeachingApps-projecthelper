@@ -16,11 +16,13 @@ import ProjectPlanner from "../components/ProjectPlanner";
 import ResourceSuggestions from "../components/ResourceSuggestions";
 import { DiagramBuilder } from "../components/diagram-builder";
 import ProblemSolver from "../components/ProblemSolver";
+import MVPBuilder from "../components/mvp-builder/components/MVPBuilder";
 import type { ProjectData, ResourceData, AssistantData, DiagramData } from "../types";
 import { AssistantDataFromPage } from "../components/diagram-builder/types";
 import { Node, Edge } from "reactflow";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../components/ui/tooltip";
 import { Maximize, Info, ArrowLeft, Trash2 } from "lucide-react";
+import { ToastProvider } from "../components/ui/use-toast";
 
 interface Project {
   id: string;
@@ -740,12 +742,13 @@ export default function ToolsPage() {
           onValueChange={handleTabChange}
           className="space-y-8"
         >
-          <TabsList className="grid w-full grid-cols-5 mb-4">
+          <TabsList className="grid w-full grid-cols-6 mb-4">
             <TabsTrigger value="ideation">Project Ideation</TabsTrigger>
             <TabsTrigger value="planner">Project Planner</TabsTrigger>
             <TabsTrigger value="resources">Resource Suggestions</TabsTrigger>
             <TabsTrigger value="diagram">Diagram Builder</TabsTrigger>
             <TabsTrigger value="assistant">Project Assistant</TabsTrigger>
+            <TabsTrigger value="mvp">MVP Builder</TabsTrigger>
           </TabsList>
 
           <TabsContent value="ideation" className="">
@@ -1231,6 +1234,16 @@ export default function ToolsPage() {
                 initialMessage={initialAssistantMessage}
               />
             )}
+          </TabsContent>
+
+          <TabsContent value="mvp" className="h-full">
+            <Card className="border-0 shadow-none h-full">
+              <CardContent className="p-0 h-full">
+                <ToastProvider>
+                  <MVPBuilder />
+                </ToastProvider>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>
