@@ -73,7 +73,19 @@ const generateCode = async (prompt: string): Promise<string> => {
         messages: [
           {
             role: "system",
-            content: "You are a React component generator. Generate only the code for a React component based on the user's description. Use modern React with hooks and Tailwind CSS for styling. Provide clean, well-commented, production-ready code with reasonable defaults. Do not include any explanation, just the code."
+            content: `You are a helpful React component generator that creates interactive and engaging components.
+
+Key requirements:
+1. Use modern React with hooks and Tailwind CSS for styling
+2. Create clean, well-commented code with reasonable defaults 
+3. Provide your code inside a markdown code block using triple backticks
+4. Provide any explanations or descriptions as plain text BEFORE or AFTER the code block, never inside it
+
+When creating components:
+1. Write efficient, clean code that follows best practices
+2. Include sensible defaults and props for flexibility
+3. Ensure the component is self-contained and reusable
+4. Put explanations about the code in plain text before or after the code block, not inside as comments`
           },
           {
             role: "user",
@@ -93,7 +105,13 @@ const generateCode = async (prompt: string): Promise<string> => {
     
     const data = await response.json();
     console.log("API response received:", data);
-    return data.choices[0].message.content.trim();
+    // Clean the response to remove any backticks that might surround the code
+    let content = data.choices[0].message.content.trim();
+    
+    // Remove markdown code block syntax if present
+    content = content.replace(/^```[\w]*\n/, '').replace(/```$/, '');
+    
+    return content;
   } catch (error) {
     console.error("Error calling Groq API:", error);
     alert("Error calling Groq API. Check console for details and ensure you have set GROQ_API_KEY in your .env.local file.");
@@ -102,18 +120,92 @@ const generateCode = async (prompt: string): Promise<string> => {
   }
 };
 
-// Mock API call function as fallback (same as before)
+// Mock API call function as fallback
 const mockGenerateCode = async (prompt: string): Promise<string> => {
   // Simulate API delay
   await new Promise(resolve => setTimeout(resolve, 1500));
   
-  // Return mock response based on prompt keywords
+  let code = "";
+  let explanation = "";
+  
+  // For follow-up requests that modify existing code
+  if (prompt.toLowerCase().includes('based on my previous request') || 
+      prompt.toLowerCase().includes('update') || 
+      prompt.toLowerCase().includes('change')) {
+    
+    // For updates to the portfolio website
+    if (prompt.toLowerCase().includes('portfolio')) {
+      explanation = "I've updated the portfolio website with a blue theme as requested. The header now has blue accent colors and improved hover states for the navigation links.";
+      code = `import React from 'react';
+
+// Updated Portfolio website component
+export default function Portfolio() {
+  return (
+    <div className="min-h-screen bg-blue-50">
+      {/* Header with updated styles */}
+      <header className="bg-white shadow-sm">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            <div className="flex items-center">
+              <h1 className="text-xl font-bold text-blue-600">Your Name</h1>
+            </div>
+            <nav className="flex items-center space-x-8">
+              <a href="#about" className="text-gray-600 hover:text-blue-600">About</a>
+              <a href="#projects" className="text-gray-600 hover:text-blue-600">Projects</a>
+              <a href="#contact" className="text-gray-600 hover:text-blue-600">Contact</a>
+            </nav>
+          </div>
+        </div>
+      </header>
+
+      {/* Rest of the component - updated as requested */}
+      {/* ... */}
+    </div>
+  );
+}`;
+    }
+    
+    // For button color changes
+    if (prompt.toLowerCase().includes('button') && prompt.toLowerCase().includes('color')) {
+      explanation = "I've updated the Button component with more color options. The button now supports blue, red, green, purple, and indigo colors with matching hover and focus states for each.";
+      code = `import React from 'react';
+
+function Button({ text, onClick, color = "blue" }) {
+  // Color options expanded for more flexibility
+  const colorStyles = {
+    blue: 'bg-blue-500 hover:bg-blue-600 focus:ring-blue-400',
+    red: 'bg-red-500 hover:bg-red-600 focus:ring-red-400',
+    green: 'bg-green-500 hover:bg-green-600 focus:ring-green-400',
+    purple: 'bg-purple-500 hover:bg-purple-600 focus:ring-purple-400',
+    indigo: 'bg-indigo-500 hover:bg-indigo-600 focus:ring-indigo-400',
+  };
+  
+  // Default to blue if the specified color isn't in our map
+  const colorStyle = colorStyles[color] || colorStyles.blue;
+  
+  return (
+    <button
+      onClick={onClick}
+      className={\`px-4 py-2 rounded font-medium text-white \${colorStyle} focus:outline-none focus:ring-2 focus:ring-opacity-50 transition-colors\`}
+    >
+      {text}
+    </button>
+  );
+}
+
+export default Button;`;
+    }
+  }
+  
+  // Original code for first-time requests
   if (prompt.toLowerCase().includes('hello')) {
-    return `export default function Hello() {
+    explanation = "Here's a simple Hello World component. You can customize the text inside the h1 tag to change the message.";
+    code = `export default function Hello() {
   return <h1>Hello, World!</h1>;
 }`;
-  } else if (prompt.toLowerCase().includes('button')) {
-    return `import React from 'react';
+  } else if (prompt.toLowerCase().includes('button') && !code) {
+    explanation = "This is a customizable Button component that accepts text content, a click handler, and a color prop (defaulting to blue). The component uses Tailwind CSS for styling with hover and focus states.";
+    code = `import React from 'react';
 
 function Button({ text, onClick, color = "blue" }) {
   return (
@@ -127,8 +219,143 @@ function Button({ text, onClick, color = "blue" }) {
 }
 
 export default Button;`;
-  } else {
-    return `import React from 'react';
+  } else if ((prompt.toLowerCase().includes('portfolio') || prompt.toLowerCase().includes('website')) && !code) {
+    explanation = `This is a complete portfolio website component with multiple sections:
+
+1. A responsive header with navigation links
+2. A hero section with a gradient background
+3. An about section with a profile image and skills tags
+4. A projects section displaying a grid of projects
+5. A contact form section
+6. A footer with copyright information
+
+The component uses Tailwind CSS for styling and is fully responsive. You can customize each section by replacing the placeholder content with your own information.`;
+    
+    code = `import React from 'react';
+
+// Simple Portfolio website component
+export default function Portfolio() {
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header / Navbar */}
+      <header className="bg-white shadow-sm">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            <div className="flex items-center">
+              <h1 className="text-xl font-bold text-gray-900">Your Name</h1>
+            </div>
+            <nav className="flex items-center space-x-8">
+              <a href="#about" className="text-gray-600 hover:text-gray-900">About</a>
+              <a href="#projects" className="text-gray-600 hover:text-gray-900">Projects</a>
+              <a href="#contact" className="text-gray-600 hover:text-gray-900">Contact</a>
+            </nav>
+          </div>
+        </div>
+      </header>
+
+      {/* Hero Section */}
+      <section className="bg-gradient-to-r from-purple-50 to-blue-50 py-20">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-4xl font-extrabold text-gray-900 sm:text-5xl">
+            <span className="block">Hello, I'm Your Name</span>
+            <span className="block text-purple-600">Web Developer</span>
+          </h2>
+          <p className="mt-4 text-xl text-gray-600">
+            I build beautiful and functional websites with modern technologies.
+          </p>
+          <div className="mt-8">
+            <a href="#contact" className="bg-purple-600 text-white px-6 py-3 rounded-md font-medium shadow-md hover:bg-purple-700 transition-colors duration-300">
+              Get in touch
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* About Section */}
+      <section id="about" className="py-16">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-3xl font-bold text-center text-gray-900 mb-8">About Me</h2>
+          <div className="flex flex-col md:flex-row items-center gap-12">
+            <div className="w-full md:w-1/3 flex justify-center">
+              <div className="w-48 h-48 rounded-full overflow-hidden shadow-xl">
+                <img src="https://via.placeholder.com/300x300" alt="Profile" className="w-full h-full object-cover" />
+              </div>
+            </div>
+            <div className="w-full md:w-2/3">
+              <p className="text-lg text-gray-700 mb-4">
+                I'm a web developer with experience in building responsive and performant web applications.
+              </p>
+              <div className="flex flex-wrap gap-2 mt-4">
+                <span className="px-3 py-1 bg-gray-200 text-gray-800 rounded-full text-sm">React</span>
+                <span className="px-3 py-1 bg-gray-200 text-gray-800 rounded-full text-sm">JavaScript</span>
+                <span className="px-3 py-1 bg-gray-200 text-gray-800 rounded-full text-sm">Tailwind CSS</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Projects Section */}
+      <section id="projects" className="py-16 bg-gray-100">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">My Projects</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[1, 2, 3].map((item) => (
+              <div key={item} className="bg-white rounded-lg overflow-hidden shadow-md">
+                <img src={\`https://via.placeholder.com/300x200?text=Project+\${item}\`} alt={\`Project \${item}\`} className="w-full h-48 object-cover" />
+                <div className="p-6">
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Project {item}</h3>
+                  <p className="text-gray-700 mb-4">This is a description for Project {item}.</p>
+                  <button className="text-purple-600 hover:text-purple-800 font-medium">
+                    View Details →
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Contact Section */}
+      <section id="contact" className="py-16">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-3xl font-bold text-center text-gray-900 mb-8">Get In Touch</h2>
+          <div className="bg-white shadow-md rounded-lg p-8">
+            <form className="space-y-6">
+              <div>
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                <input type="text" id="name" className="w-full px-4 py-2 border border-gray-300 rounded-md" />
+              </div>
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input type="email" id="email" className="w-full px-4 py-2 border border-gray-300 rounded-md" />
+              </div>
+              <div>
+                <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">Message</label>
+                <textarea id="message" rows={4} className="w-full px-4 py-2 border border-gray-300 rounded-md"></textarea>
+              </div>
+              <div>
+                <button type="submit" className="w-full bg-purple-600 text-white px-6 py-3 rounded-md font-medium">
+                  Send Message
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-gray-900 text-white py-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <p>&copy; {new Date().getFullYear()} Your Name. All rights reserved.</p>
+        </div>
+      </footer>
+    </div>
+  );
+}`;
+  } else if (!code) {
+    explanation = "Here's a simple React component with Tailwind CSS styling. This is a generic card component that you can customize for your specific needs.";
+    code = `import React from 'react';
 
 function Component() {
   return (
@@ -145,6 +372,9 @@ function Component() {
 
 export default Component;`;
   }
+  
+  // Format the response with markdown code blocks
+  return explanation ? explanation + "\n\n```jsx\n" + code + "\n```" : "```jsx\n" + code + "\n```";
 };
 
 // Add a function to help set up environment variables
@@ -211,6 +441,7 @@ type Prompt = {
 }
 
 export default function MVPBuilder() {
+  // UI state management
   const [activeTab, setActiveTab] = useState<string>("new");
   const [prompt, setPrompt] = useState<string>("");
   const [code, setCode] = useState<string>("");
@@ -224,6 +455,25 @@ export default function MVPBuilder() {
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [livePreview, setLivePreview] = useState(false);
   const [isUsingMock, setIsUsingMock] = useState<boolean>(false);
+  const [chatMessages, setChatMessages] = useState<Array<{type: 'user' | 'assistant', content: string}>>([]);
+  
+  // Active tab for right panel
+  const [rightPanelTab, setRightPanelTab] = useState<'code' | 'preview'>('code');
+  
+  // Bolt structure controls
+  const [layout, setLayout] = useState<'horizontal' | 'vertical'>('vertical');
+  const [pinnedSections, setPinnedSections] = useState<{
+    prompt: boolean;
+    code: boolean;
+    preview: boolean;
+  }>({
+    prompt: true,
+    code: true,
+    preview: true
+  });
+  
+  // Actively focused section
+  const [activeFocus, setActiveFocus] = useState<'prompt' | 'code' | 'preview' | null>(null);
   
   const editorRef = useRef<HTMLDivElement>(null);
   const promptInputRef = useRef<HTMLTextAreaElement>(null);
@@ -234,11 +484,41 @@ export default function MVPBuilder() {
     checkEnvironmentSetup();
   }, []);
   
+  // Process code to extract comments and clean it
+  const processCodeAndExtractMessages = (rawCode: string): { cleanCode: string, message: string } => {
+    // Extract code block from markdown if present
+    let cleanCode = '';
+    let message = '';
+    
+    // Check if the response has a markdown code block
+    const codeBlockMatch = rawCode.match(/```(?:jsx|tsx|js|javascript)?([\s\S]*?)```/);
+    
+    if (codeBlockMatch) {
+      // Extract the code inside the backticks
+      cleanCode = codeBlockMatch[1].trim();
+      
+      // Extract any text before or after the code block as a message
+      const parts = rawCode.split(/```(?:jsx|tsx|js|javascript)?[\s\S]*?```/);
+      message = parts.filter(Boolean).join('\n').trim();
+    } else if (rawCode.includes('import ') || rawCode.includes('function ') || rawCode.includes('const ')) {
+      // If no code block markers but looks like code
+      cleanCode = rawCode;
+    } else {
+      // If it doesn't look like code, treat the whole thing as a message
+      message = rawCode;
+    }
+    
+    return { cleanCode, message: message };
+  };
+  
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!prompt.trim()) return;
+    
+    // Add to chat history
+    setChatMessages(prev => [...prev, { type: 'user', content: prompt }]);
     
     // Save to history
     const newPrompt = {
@@ -252,6 +532,7 @@ export default function MVPBuilder() {
     // Generate code
     setIsLoading(true);
     setIsUsingMock(false);
+    
     try {
       console.log("Generating code for prompt:", prompt);
       const startTime = Date.now();
@@ -268,6 +549,9 @@ export default function MVPBuilder() {
       
       const generatedCode = await generateCode(prompt);
       
+      // Process the generated code to extract any conversational messages
+      const { cleanCode, message } = processCodeAndExtractMessages(generatedCode);
+      
       const endTime = Date.now();
       console.log(`Code generation took ${(endTime - startTime) / 1000} seconds`);
       
@@ -277,14 +561,16 @@ export default function MVPBuilder() {
         console.warn("Response time suggests mock data was used");
       }
       
-      setCode(generatedCode);
-      setEditedCode(generatedCode);
+      setCode(cleanCode);
+      setEditedCode(cleanCode);
+      
+      // Add assistant message to chat if there is one
+      if (message) {
+        setChatMessages(prev => [...prev, { type: 'assistant', content: message }]);
+      }
       
       // Always set to code view initially to show what was generated
-      setCodeView('code');
-      
-      // Show a hint toast or alert about the preview tab
-      // This would be a good place to add a toast notification if you have a toast component
+      setRightPanelTab('code');
       
     } catch (error) {
       console.error("Error generating code:", error);
@@ -428,9 +714,12 @@ export default function MVPBuilder() {
     const currentCode = isEditing ? editedCode : code;
     const previewIframe = document.querySelector('iframe');
     
+    // Clean the code to remove any backticks in case they weren't caught earlier
+    const cleanedCode = currentCode.replace(/^```[\w]*\n/, '').replace(/```$/, '').trim();
+    
     if (previewIframe) {
       try {
-        previewIframe.srcdoc = generatePreviewHtml(currentCode);
+        previewIframe.srcdoc = generatePreviewHtml(cleanedCode);
       } catch (error) {
         console.error("Error refreshing preview:", error);
         toast({
@@ -481,10 +770,8 @@ export default function MVPBuilder() {
 
   // Generate preview HTML with proper React and styling support
   const generatePreviewHtml = (codeToRender: string) => {
-    // Simple preprocessing - strip export and import statements
-    let processedCode = codeToRender
-      .replace(/import\s+.*?;/g, '')
-      .replace(/export\s+default\s+/, '');
+    // First, process the code to handle imports and export statements
+    let processedCode = processCodeForPreview(codeToRender);
     
     // Extract component name if possible
     let componentName = 'Component';
@@ -499,17 +786,24 @@ export default function MVPBuilder() {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <script src="https://unpkg.com/react@17/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone@7.16.7/babel.min.js" crossorigin></script>
   <style>
-    body { 
+    html, body { 
       margin: 0; 
       padding: 0; 
+      height: 100%;
+      width: 100%;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
       background-color: white;
+      overflow: auto;
     }
     
     #root { 
-      min-height: 100vh; 
+      min-height: 100%;
       width: 100%;
+      overflow: auto;
     }
     
     /* Base styles */
@@ -576,6 +870,33 @@ export default function MVPBuilder() {
       white-space: pre-wrap;
       overflow-x: auto;
     }
+    
+    /* Mock UI component styles */
+    .mock-ui-component {
+      padding: 8px;
+      border: 1px dashed #CBD5E0;
+      border-radius: 4px;
+      margin: 4px 0;
+      position: relative;
+    }
+    
+    .mock-ui-component::before {
+      content: attr(class);
+      position: absolute;
+      top: -10px;
+      left: 8px;
+      background-color: white;
+      padding: 0 4px;
+      font-size: 10px;
+      color: #718096;
+    }
+
+    /* Fix for overflow in preview */
+    .scroll-container {
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+    }
   </style>
 </head>
 <body>
@@ -585,27 +906,124 @@ export default function MVPBuilder() {
     </div>
   </div>
   
-  <script src="https://unpkg.com/react@17/umd/react.development.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js" crossorigin></script>
-  <script src="https://unpkg.com/@babel/standalone@7.16.7/babel.min.js" crossorigin></script>
-  
   <script type="text/babel">
-    // Define the component
-    const ${componentName} = ${processedCode}
+    // Make React hooks available
+    const { useState, useEffect, useRef, useContext, useReducer, useCallback, useMemo } = React;
     
-    // Render the component with error boundary
-    try {
-      ReactDOM.render(<${componentName} />, document.getElementById('root'));
-      } catch (error) {
-        console.error("Preview error:", error);
-        document.getElementById('root').innerHTML = \`
-        <div class="error-container">
-          <div class="error-title">Error in Preview</div>
-          <p>There was an error rendering the component:</p>
-          <div class="error-message">\${error.message}</div>
-          </div>
-        \`;
+    // Mock external libraries
+    const mockComponent = (name) => props => {
+      return React.createElement('div', {
+        className: 'mock-ui-component',
+        style: { padding: '8px', border: '1px dashed #CBD5E0' }
+      }, 
+      [
+        React.createElement('span', {
+          style: { color: '#888', fontSize: '12px', display: 'block', marginBottom: '4px' }
+        }, '[Mock ' + name + ']'),
+        props.children || null
+      ]);
+    };
+    
+    // Create mock implementations for common libraries
+    window.mockLibraries = {
+      // UI Libraries
+      '@mui/material': ['Button', 'TextField', 'Select', 'Container', 'Grid', 'Box'],
+      '@chakra-ui/react': ['Button', 'Input', 'Box', 'Container', 'Stack', 'Flex'],
+      'antd': ['Button', 'Input', 'Select', 'Layout', 'Space', 'Card'],
+      
+      // Icons
+      '@heroicons/react/24/solid': ['HomeIcon', 'UserIcon', 'CogIcon'],
+      '@heroicons/react/24/outline': ['HomeIcon', 'UserIcon', 'CogIcon'],
+      
+      // Other common libraries
+      'axios': true,
+      'swr': true,
+      'next/router': true,
+      'next/image': true
+    };
+    
+    // Create mock implementations for common imports
+    Object.entries(window.mockLibraries).forEach(([library, components]) => {
+      if (Array.isArray(components)) {
+        components.forEach(comp => {
+          window[comp] = mockComponent(comp);
+        });
       }
+    });
+    
+    // Mock fetch API
+    const originalFetch = window.fetch;
+    window.fetch = (url, options) => {
+      console.log('Preview: Mocking fetch for', url);
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ 
+          success: true, 
+          message: 'This is mock data from fetch',
+          data: [
+            { id: 1, name: 'Mock Item 1' },
+            { id: 2, name: 'Mock Item 2' },
+            { id: 3, name: 'Mock Item 3' }
+          ] 
+        }),
+        text: () => Promise.resolve('Mock text response'),
+        headers: new Headers({ 'Content-Type': 'application/json' })
+      });
+    };
+    
+    // Wrap the processed code in error handling
+    try {
+      // Execute the code
+      ${processedCode}
+      
+      // Determine if there's a component to render
+      let ComponentToRender = null;
+      
+      // Find all potential components that follow React component naming convention (PascalCase)
+      const potentialComponents = Object.keys(window)
+        .filter(key => /^[A-Z][A-Za-z0-9]*$/.test(key) && typeof window[key] === 'function');
+      
+      if (potentialComponents.includes('${componentName}')) {
+        // If we found the component matching our expected name
+        ComponentToRender = ${componentName};
+      } else if (potentialComponents.length > 0) {
+        // Use the first component we find with PascalCase naming
+        ComponentToRender = window[potentialComponents[0]];
+        console.log('Using detected component:', potentialComponents[0]);
+      }
+      
+      if (ComponentToRender) {
+        const ScrollWrapper = (props) => {
+          return React.createElement('div', { 
+            className: 'scroll-container', 
+            style: { 
+              padding: '16px', 
+              boxSizing: 'border-box',
+              minHeight: '100%'
+            } 
+          }, 
+            React.createElement(ComponentToRender, props)
+          );
+        };
+        
+        ReactDOM.render(
+          React.createElement(ScrollWrapper),
+          document.getElementById('root')
+        );
+      } else {
+        throw new Error('No component found to render. Make sure your code exports a component with export default.');
+      }
+    } catch (error) {
+      console.error("Preview error:", error);
+      document.getElementById('root').innerHTML = \`
+      <div class="error-container">
+        <div class="error-title">Error in Preview</div>
+        <p>There was an error rendering the component:</p>
+        <div class="error-message">\${error.message}</div>
+        </div>
+      \`;
+    }
   </script>
 </body>
 </html>`;
@@ -618,131 +1036,313 @@ export default function MVPBuilder() {
     }
   }, []);
   
+  // Toggle pinned state for a section
+  const togglePin = (section: 'prompt' | 'code' | 'preview') => {
+    setPinnedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
+
+  // Toggle layout between horizontal and vertical
+  const toggleLayout = () => {
+    setLayout(prev => prev === 'horizontal' ? 'vertical' : 'horizontal');
+  };
+
+  // Focus on a specific section
+  const focusSection = (section: 'prompt' | 'code' | 'preview' | null) => {
+    setActiveFocus(section);
+  };
+
+  // Get section class names based on state
+  const getSectionClasses = (section: 'prompt' | 'code' | 'preview') => {
+    const isPinned = pinnedSections[section];
+    
+    // Base classes
+    let classes = "transition-all duration-300 overflow-hidden rounded-lg border border-gray-200 mb-2 shadow-sm ";
+    
+    // For vertical layout
+    if (layout === 'vertical') {
+      if (activeFocus === section) {
+        classes += "flex-1 min-h-[calc(100vh-220px)] ";  // Adjusted to fill available space
+      } else if (activeFocus && !isPinned) {
+        classes += "h-0 opacity-0 m-0 p-0 hidden ";
+      } else {
+        classes += "flex-1 min-h-[calc(33vh-80px)] ";  // Adjusted to give equal space when not focused
+      }
+    } 
+    // For horizontal layout
+    else {
+      classes += "h-full ";
+      if (activeFocus === section) {
+        classes += "flex-1 min-w-[60%] ";  // Adjusted to fill available space
+      } else if (activeFocus && !isPinned) {
+        classes += "w-0 opacity-0 m-0 p-0 hidden ";
+      } else {
+        classes += "flex-1 min-w-[30%] ";  // Adjusted to give equal space when not focused
+      }
+    }
+    
+    return classes;
+  };
+
+  // Handle tab switching with preview refresh
+  const handleTabChange = (tab: 'code' | 'preview') => {
+    setRightPanelTab(tab);
+    
+    // If switching to preview tab, refresh the preview immediately
+    if (tab === 'preview' && code) {
+      setTimeout(() => refreshPreview(), 50);
+    }
+  };
+
   return (
-    <div className="w-full h-screen flex flex-col md:flex-row overflow-hidden bg-gray-50">
-      {/* Left Panel - Prompt Input */}
-      <div className="w-full md:w-1/2 h-1/2 md:h-full p-4 md:p-6 flex flex-col border-b md:border-b-0 md:border-r border-gray-200">
-        <h2 className="text-xl font-medium mb-4 text-gray-800">Prompt</h2>
-        
-        {/* API Key Status Notice */}
-        {!(process.env.GROQ_API_KEY || process.env.NEXT_PUBLIC_GROQ_API_KEY) && (
-          <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-yellow-800 text-sm">
-            <strong>API Key Missing:</strong> Using mock data. To use Groq API, add NEXT_PUBLIC_GROQ_API_KEY to your .env.local file and restart the server.
-            <div className="mt-2 text-xs">
-              <strong>Note:</strong> The key must be prefixed with NEXT_PUBLIC_ to be accessible in browser code.
-            </div>
-          </div>
-        )}
-        <form onSubmit={handleSubmit} className="flex flex-col flex-grow">
-                    <Textarea
-                      ref={promptInputRef}
-                      value={prompt}
-                      onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Enter your prompt here... (e.g., 'Create a button component')"
-            className="flex-grow resize-none p-4 text-base rounded border-gray-300 text-gray-800 bg-white"
-                      disabled={isLoading}
-                    />
-          <button 
-                        type="submit" 
-                        disabled={isLoading || !prompt.trim()}
-            className={cn(
-              "mt-4 py-2 px-4 rounded text-white font-medium",
-              isLoading || !prompt.trim() 
-                ? "bg-blue-400 cursor-not-allowed" 
-                : "bg-blue-500 hover:bg-blue-600"
-            )}
-                      >
-                        {isLoading ? (
-              <span className="flex items-center justify-center">
-                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                Generating...
-              </span>
-            ) : (
-              "Generate Code"
-            )}
-          </button>
-                  </form>
-                </div>
-      
-      {/* Right Panel - Code Output and Preview */}
-      <div className="w-full md:w-1/2 h-1/2 md:h-full flex flex-col overflow-hidden">
-        {/* Code Output Section */}
-        <div className="h-1/2 p-4 md:p-6 overflow-auto border-b border-gray-200">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-medium text-gray-800">Code Output</h2>
-            <div className="flex items-center">
-              {isUsingMock && (
-                <span className="mr-3 text-xs px-2 py-1 rounded bg-yellow-100 text-yellow-800">Using Mock Data</span>
-              )}
-              {code && !isLoading && !isEditing && (
-                <button 
-                  onClick={() => setIsEditing(true)}
-                  className="flex items-center px-3 py-1.5 text-sm font-medium rounded bg-gray-100 hover:bg-gray-200 text-gray-700"
-                >
-                  <Pencil className="h-4 w-4 mr-1.5" />
-                  Edit Code
-                </button>
-              )}
-              {isEditing && (
-                <div className="flex space-x-2">
-                  <button 
-                    onClick={saveEditedCode}
-                    className="flex items-center px-3 py-1.5 text-sm font-medium rounded bg-green-100 hover:bg-green-200 text-green-700"
-                  >
-                    <Save className="h-4 w-4 mr-1.5" />
-                    Save
-                  </button>
-                  <button 
-                    onClick={cancelEditing}
-                    className="flex items-center px-3 py-1.5 text-sm font-medium rounded bg-gray-100 hover:bg-gray-200 text-gray-700"
-                  >
-                    <X className="h-4 w-4 mr-1.5" />
-                    Cancel
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-          {isLoading ? (
-            <div className="flex items-center justify-center h-[calc(100%-40px)] p-8">
-              <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
-              <span className="ml-2 text-gray-600">Generating code...</span>
-            </div>
-          ) : code ? (
-            isEditing ? (
-              <Textarea
-                value={editedCode}
-                onChange={handleCodeEdit}
-                className="w-full h-[calc(100%-40px)] p-4 text-sm font-mono border border-gray-200 rounded resize-none text-gray-800 bg-white"
-              />
-            ) : (
-              <pre className="bg-gray-50 p-4 rounded border border-gray-200 overflow-auto h-[calc(100%-40px)]">
-                <code className="text-sm font-mono text-gray-800">{code}</code>
-              </pre>
-            )
-          ) : (
-            <div className="flex items-center justify-center h-[calc(100%-40px)] bg-white rounded border border-gray-200 text-gray-500">
-              Code output will appear here
-            </div>
+    <div className="w-full h-screen bg-gray-50 flex flex-col">
+      {/* Toolbar/Header */}
+      <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200">
+        <div className="flex items-center">
+          <h1 className="text-xl font-bold text-gray-800">
+            <span className="text-blue-600">MVP</span> Builder
+          </h1>
+          {isUsingMock && (
+            <span className="ml-3 text-xs px-2 py-1 rounded bg-yellow-100 text-yellow-800">Using Mock Data</span>
           )}
         </div>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={toggleTheme}
+            className="p-1.5 rounded hover:bg-gray-100 flex items-center text-sm font-medium"
+            title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {darkMode ? <Sun className="h-4 w-4 mr-1.5" /> : <Moon className="h-4 w-4 mr-1.5" />}
+            {darkMode ? 'Light Mode' : 'Dark Mode'}
+          </button>
+          <a 
+            href="https://github.com/your-username/mvp-builder" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="p-1.5 rounded hover:bg-gray-100 flex items-center text-sm font-medium"
+          >
+            <Github className="h-4 w-4 mr-1.5" />
+            GitHub
+          </a>
+        </div>
+      </div>
+      
+      {/* Main content area - split into left and right panels */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left panel - Chatbot/Prompt */}
+        <div className="w-1/3 border-r border-gray-200 flex flex-col h-full bg-white">
+          <div className="py-3 px-4 border-b border-gray-200 bg-gray-50">
+            <h2 className="text-md font-medium text-gray-800">Chat with AI</h2>
+          </div>
+          
+          <div className="flex-grow overflow-auto flex flex-col">
+            {/* API Key Status Notice */}
+            {!(process.env.GROQ_API_KEY || process.env.NEXT_PUBLIC_GROQ_API_KEY) && (
+              <div className="m-3 p-3 bg-yellow-50 border border-yellow-200 rounded text-yellow-800 text-sm">
+                <strong>API Key Missing:</strong> Using mock data. To use Groq API, add NEXT_PUBLIC_GROQ_API_KEY to your .env.local file and restart the server.
+                <div className="mt-2 text-xs">
+                  <strong>Note:</strong> The key must be prefixed with NEXT_PUBLIC_ to be accessible in browser code.
+                </div>
+              </div>
+            )}
+            
+            {/* Chat Messages */}
+            <div className="flex-grow overflow-y-auto p-3">
+              {chatMessages.length > 0 ? (
+                <div className="space-y-4">
+                  {chatMessages.map((message, index) => (
+                    <div 
+                      key={index} 
+                      className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div 
+                        className={`max-w-[80%] rounded-lg p-3 ${
+                          message.type === 'user' 
+                            ? 'bg-blue-500 text-white' 
+                            : 'bg-gray-100 text-gray-800'
+                        }`}
+                      >
+                        <p className="text-sm">{message.content}</p>
+                      </div>
+                    </div>
+                  ))}
+                  <div ref={(el) => { if (el) el.scrollIntoView({ behavior: 'smooth' }); }}></div>
+                </div>
+              ) : (
+                <div className="text-center text-gray-500 my-8">
+                  <p>No messages yet. Start by entering a prompt below.</p>
+                </div>
+              )}
+            </div>
+            
+            {/* Chat Input */}
+            <div className="p-3 border-t border-gray-200 bg-gray-50">
+              <form onSubmit={handleSubmit} className="flex flex-col">
+                <Textarea
+                  ref={promptInputRef}
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  placeholder="Enter your prompt here... (e.g., 'Create a button component')"
+                  className="resize-none p-3 text-base rounded border-gray-300 text-gray-800 bg-white min-h-[100px]"
+                  disabled={isLoading}
+                />
+                <button 
+                  type="submit" 
+                  disabled={isLoading || !prompt.trim()}
+                  className={cn(
+                    "mt-3 py-2 px-4 rounded text-white font-medium flex items-center justify-center",
+                    isLoading || !prompt.trim() 
+                      ? "bg-blue-400 cursor-not-allowed" 
+                      : "bg-blue-500 hover:bg-blue-600"
+                  )}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-5 w-5 mr-2" />
+                      Generate Code
+                    </>
+                  )}
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
         
-        {/* Preview Section */}
-        <div className="h-1/2 p-4 md:p-6 overflow-auto">
-          <h2 className="text-xl font-medium mb-4 text-gray-800">Preview</h2>
-          <div className="bg-white border border-gray-200 rounded h-[calc(100%-40px)] overflow-auto">
-            {isLoading ? (
-              <div className="flex items-center justify-center h-full">
-                <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
-                <span className="ml-2 text-gray-600">Generating preview...</span>
+        {/* Right panel - Code/Preview with tabs */}
+        <div className="w-2/3 flex flex-col h-full">
+          {/* Tabs header */}
+          <div className="flex items-center border-b border-gray-200 bg-gray-50">
+            <button
+              onClick={() => handleTabChange('code')}
+              className={`px-6 py-3 font-medium text-sm flex items-center border-b-2 ${
+                rightPanelTab === 'code'
+                  ? 'border-blue-500 text-blue-600 bg-white'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              <Code className="h-4 w-4 mr-2" />
+              Code
+            </button>
+            <button
+              onClick={() => handleTabChange('preview')}
+              className={`px-6 py-3 font-medium text-sm flex items-center border-b-2 ${
+                rightPanelTab === 'preview'
+                  ? 'border-blue-500 text-blue-600 bg-white'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              <Rocket className="h-4 w-4 mr-2" />
+              Preview
+            </button>
+            
+            {/* Actions for the active panel */}
+            <div className="ml-auto flex items-center pr-4">
+              {rightPanelTab === 'code' && code && !isLoading && (
+                <>
+                  <button 
+                    onClick={copyToClipboard}
+                    className="p-1.5 rounded hover:bg-gray-100 ml-2 text-gray-600"
+                    title="Copy code to clipboard"
+                  >
+                    {copySuccess ? <Check className="h-4 w-4 text-green-500" /> : <Code className="h-4 w-4" />}
+                  </button>
+                  {!isEditing ? (
+                    <button 
+                      onClick={() => setIsEditing(true)}
+                      className="p-1.5 rounded hover:bg-gray-100 ml-2 text-gray-600"
+                      title="Edit code"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                  ) : (
+                    <>
+                      <button 
+                        onClick={saveEditedCode}
+                        className="p-1.5 rounded hover:bg-gray-100 text-green-600 ml-2"
+                        title="Save changes"
+                      >
+                        <Save className="h-4 w-4" />
+                      </button>
+                      <button 
+                        onClick={cancelEditing}
+                        className="p-1.5 rounded hover:bg-gray-100 text-red-600 ml-2"
+                        title="Cancel editing"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </>
+                  )}
+                </>
+              )}
+              {rightPanelTab === 'preview' && code && !isLoading && (
+                <button 
+                  onClick={refreshPreview}
+                  className="p-1.5 rounded hover:bg-gray-100 ml-2 text-gray-600"
+                  title="Refresh preview"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </div>
+          
+          {/* Content area */}
+          <div className="flex-grow overflow-hidden">
+            {/* Code panel */}
+            {rightPanelTab === 'code' && (
+              <div className="h-full">
+                {isLoading ? (
+                  <div className="flex items-center justify-center h-full p-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+                    <span className="ml-2 text-gray-600">Generating code...</span>
+                  </div>
+                ) : code ? (
+                  isEditing ? (
+                    <Textarea
+                      value={editedCode}
+                      onChange={handleCodeEdit}
+                      className="w-full h-full p-4 text-sm font-mono border-0 rounded-none resize-none text-gray-800 bg-white"
+                      style={{ minHeight: '100%' }}
+                    />
+                  ) : (
+                    <pre className="p-4 m-0 rounded-none overflow-auto h-full bg-white text-sm font-mono text-gray-800 whitespace-pre-wrap">
+                      <code>{code}</code>
+                    </pre>
+                  )
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full bg-white rounded text-gray-500">
+                    <Code className="h-12 w-12 text-gray-300 mb-2" />
+                    <p>Generate code with a prompt to see it here</p>
+                  </div>
+                )}
               </div>
-            ) : code ? (
-              <div className="h-full w-full">
-                <CodePreview code={isEditing ? editedCode : code} darkMode={false} />
-              </div>
-            ) : (
-              <div className="flex items-center justify-center h-full text-gray-500">
-                Preview will appear here
+            )}
+            
+            {/* Preview panel */}
+            {rightPanelTab === 'preview' && (
+              <div className="h-full">
+                {isLoading ? (
+                  <div className="flex items-center justify-center h-full">
+                    <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+                    <span className="ml-2 text-gray-600">Generating preview...</span>
+                  </div>
+                ) : code ? (
+                  <div className="h-full w-full">
+                    <CodePreview code={isEditing ? editedCode : code} darkMode={darkMode} />
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                    <Rocket className="h-12 w-12 text-gray-300 mb-2" />
+                    <p>Generate code first to see the preview</p>
+                  </div>
+                )}
               </div>
             )}
           </div>

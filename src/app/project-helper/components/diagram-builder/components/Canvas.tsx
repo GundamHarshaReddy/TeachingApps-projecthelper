@@ -159,6 +159,13 @@ const CanvasInner: React.FC<CanvasProps> = ({
   // Handle node click
   const onNodeClick = useCallback(
     (event: React.MouseEvent, node: Node) => {
+      // Skip if the click was on a button or input - prevent conflict with image node interactions
+      const target = event.target as HTMLElement;
+      if (target.closest('button') || target.closest('input') || target.classList.contains('nodrag')) {
+        console.log("[Canvas] Click on interactive element within node - not showing context menu");
+        return;
+      }
+      
       event.preventDefault();
       event.stopPropagation();
       
@@ -201,7 +208,10 @@ const CanvasInner: React.FC<CanvasProps> = ({
     ...node,
     data: {
       ...node.data,
-      onUpdate: updateNodeData
+      onUpdate: (nodeId: string, newData: any) => {
+        console.log(`[Canvas] Node ${nodeId} requesting update:`, newData);
+        updateNodeData(nodeId, newData);
+      },
     }
   }));
 

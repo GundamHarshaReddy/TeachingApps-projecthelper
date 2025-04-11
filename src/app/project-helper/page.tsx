@@ -36,6 +36,15 @@ interface Project {
   created_at: string;
 }
 
+function getOrdinalSuffix(num: number): string {
+  const j = num % 10;
+  const k = num % 100;
+  if (j === 1 && k !== 11) { return "st"; }
+  if (j === 2 && k !== 12) { return "nd"; }
+  if (j === 3 && k !== 13) { return "rd"; }
+  return "th";
+}
+
 export default function ProjectHelperPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -175,10 +184,7 @@ export default function ProjectHelperPage() {
 
   return (
     <div className="container mx-auto py-8 max-w-6xl px-4">
-      <ProjectNavbar 
-        showBack={false} 
-        showNewProject={false}
-      />
+      <ProjectNavbar showNewProject={false} />
       
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold text-pink-600">Your Projects</h1>
@@ -204,7 +210,7 @@ export default function ProjectHelperPage() {
                 <CardContent className="p-6">
                   <h3 className="font-semibold text-lg mb-2">{project.name}</h3>
                   <div className="text-sm text-gray-500 mb-2">
-                    <span className="mr-3">Grade: {project.grade}</span>
+                    <span className="mr-3">Grade: {project.grade}{getOrdinalSuffix(parseInt(project.grade, 10))} Grade</span>
                     <span>Domain: {project.domain}</span>
                   </div>
                   <p className="text-gray-700 text-sm mb-4 line-clamp-2">

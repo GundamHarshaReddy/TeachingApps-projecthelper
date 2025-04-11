@@ -806,11 +806,20 @@ export const DiagramBuilder: React.FC<{
         };
         break;
       case 'imageNode':
+        console.log(`[DiagramBuilder] Creating image node at:`, position);
         newNode = {
           id,
           type: 'imageNode',
           position,
-          data: { ...commonData, src: '', alt: 'Image', width: 200, height: 150 } as ImageNodeData,
+          data: { 
+            ...commonData, 
+            alt: 'Image', 
+            width: 200, 
+            height: 150,
+            // Add a default placeholder image - a data URL for a simple placeholder
+            imageUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgZmlsbD0iI2YxZjVmOSIvPjx0ZXh0IHg9IjEwMCIgeT0iNzUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgZmlsbD0iIzk0YTNiOCI+Q2xpY2sgdG8gdXBsb2FkIGltYWdlPC90ZXh0Pjwvc3ZnPg==',
+            onUpdate: (nodeId: string, newData: any) => updateNodeData(nodeId, newData)
+          } as ImageNodeData,
         };
         break;
       case 'codeNode':
@@ -1398,21 +1407,6 @@ export const DiagramBuilder: React.FC<{
     }
   };
 
-  // Add useEffect to report state changes back to parent
-  useEffect(() => {
-    // Call onUpdate callback when nodes or edges change, if provided
-    if (onUpdate && (nodes.length > 0 || edges.length > 0)) {
-      const currentState = {
-        nodes,
-        edges,
-        name: diagramData?.name,
-        diagramType: diagramData?.diagramType
-      };
-      
-      onUpdate(currentState);
-    }
-  }, [nodes, edges, onUpdate, diagramData?.name, diagramData?.diagramType]);
-
   // Handle export dialog close
   const handleExportOptionsClose = () => {
     setExportOptionsOpen(false);
@@ -1423,6 +1417,22 @@ export const DiagramBuilder: React.FC<{
     handleExportDiagram(format);
     setExportOptionsOpen(false);
   };
+
+  // Add useEffect to report state changes back to parent
+  useEffect(() => {
+    // Call onUpdate callback when nodes or edges change, if provided
+    if (onUpdate && (nodes.length > 0 || edges.length > 0)) {
+      console.log("[DiagramBuilder] Notifying parent of diagram changes");
+      const currentState = {
+        nodes,
+        edges,
+        name: diagramData?.name,
+        diagramType: diagramData?.diagramType
+      };
+      
+      onUpdate(currentState);
+    }
+  }, [nodes, edges, onUpdate, diagramData?.name, diagramData?.diagramType]);
 
   return (
     <ReactFlowProvider>

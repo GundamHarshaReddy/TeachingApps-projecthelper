@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import { Code } from 'lucide-react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { tomorrow } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 import { CodeNodeData } from '../../types';
 
 interface CodeNodeProps extends NodeProps {
@@ -140,11 +140,11 @@ export const CodeNode: React.FC<CodeNodeProps> = ({
               e.stopPropagation();
               setIsEditing(true); 
             }}
-            className="cursor-text nodrag"
+            className="cursor-text nodrag overflow-auto"
           >
             <SyntaxHighlighter
               language={language}
-              style={vscDarkPlus}
+              style={tomorrow}
               customStyle={{
                 margin: 0,
                 padding: '8px',

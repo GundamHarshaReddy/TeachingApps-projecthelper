@@ -23,6 +23,13 @@ import { Node, Edge } from "reactflow";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../components/ui/tooltip";
 import { Maximize, Info, ArrowLeft, Trash2 } from "lucide-react";
 import { ToastProvider } from "../components/ui/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "../components/ui/dialog";
 
 interface Project {
   id: string;
@@ -35,6 +42,21 @@ interface Project {
 
 // Add new type for diagram template selection
 type DiagramTemplate = 'blank' | 'flowchart' | 'mindmap' | 'businessCanvas' | 'leanCanvas';
+
+// Type definition for the diagram data
+interface DiagramDataType {
+  id?: string;
+  name?: string;
+  diagramType?: string;
+  projectName?: string;
+  projectDescription?: string;
+  grade?: string;
+  projectDomain?: string;
+  projectId?: string;
+  nodes: Node[];
+  edges: Edge[];
+  description?: string;
+}
 
 export default function ToolsPage() {
   const searchParams = useSearchParams();
@@ -125,6 +147,14 @@ export default function ToolsPage() {
     diagramType?: string;
   }>({ nodes: [], edges: [] });
 
+  // Add state for tracking unsaved changes and confirmation dialog
+  const [hasDiagramChanges, setHasDiagramChanges] = useState(false);
+  const [showUnsavedChangesDialog, setShowUnsavedChangesDialog] = useState(false);
+  const [pendingAction, setPendingAction] = useState<{
+    type: 'tab-change' | 'close-diagram' | 'load-diagram';
+    payload?: any;
+  } | null>(null);
+
   useEffect(() => {
     async function fetchProject() {
       if (!projectId) {
@@ -173,15 +203,18 @@ export default function ToolsPage() {
     fetchProject();
   }, [projectId]);
 
-  // Handle tab changes
+  // Modify the tab change handler to check for unsaved changes
   const handleTabChange = (value: string) => {
+    // If switching away from the diagram tab and there are unsaved changes
+    if (activeTab === "diagram" && diagramStarted && hasDiagramChanges && value !== "diagram") {
+      // Set pending action and show confirmation dialog
+      setPendingAction({ type: 'tab-change', payload: value });
+      setShowUnsavedChangesDialog(true);
+      return; // Don't change tabs yet
+    }
+    
+    // Otherwise proceed with tab change
     setActiveTab(value);
-    
-    // Remove the auto-start behavior for diagram tab
-    // if (value === "diagram") {
-    //   setDiagramStarted(true);
-    // }
-    
     console.log("Tab changed to:", value);
   };
 
@@ -379,7 +412,49 @@ export default function ToolsPage() {
     setActiveTab("assistant"); // Switch to assistant tab
   };
 
-  // Handle diagram save
+  // Add a function to capture diagram changes
+  const handleDiagramChange = useCallback((data: any) => {
+    // Store the current diagram state in the ref
+    currentDiagramRef.current = {
+      nodes: data.nodes || [],
+      edges: data.edges || [],
+      name: data.name,
+      diagramType: data.diagramType
+    };
+    
+    // Mark that we have unsaved changes
+    setHasDiagramChanges(true);
+    
+    console.log("[handleDiagramChange] Diagram changed, marked as unsaved");
+  }, []);
+
+  // Add a handler for the "Back to Diagrams" button
+  const handleBackToDiagrams = () => {
+    if (hasDiagramChanges) {
+      // Set pending action and show confirmation dialog
+      setPendingAction({ type: 'close-diagram', payload: null });
+      setShowUnsavedChangesDialog(true);
+      return; // Don't close diagram yet
+    }
+    
+    // If no unsaved changes, close diagram immediately
+    setDiagramStarted(false);
+  };
+
+  // Add a handler for loading another diagram when the current one has unsaved changes
+  const handleDiagramLoadWithCheck = (diagramId: string) => {
+    if (diagramStarted && hasDiagramChanges) {
+      // Set pending action and show confirmation dialog
+      setPendingAction({ type: 'load-diagram', payload: diagramId });
+      setShowUnsavedChangesDialog(true);
+      return; // Don't load diagram yet
+    }
+    
+    // If no unsaved changes, load diagram immediately
+    handleLoadDiagram(diagramId);
+  };
+
+  // Update the save diagram handler to clear the unsaved changes flag
   const handleSaveDiagram = async (data: any) => {
     console.log('[handleSaveDiagram] Starting with data:', {
       id: data.id,
@@ -413,32 +488,38 @@ export default function ToolsPage() {
         console.log(`[handleSaveDiagram] Save successful: ${result.id} - ${result.name}`);
         
         // Update the diagramData state with saved info to ensure consistency
-        setDiagramData(prevData => {
+        setDiagramData((prevData) => {
+          const newData: DiagramDataType = !prevData 
+            ? {
+                id: result.id,
+                name: result.name,
+                diagramType: saveData.diagramType,
+                nodes: saveData.nodes || [],
+                edges: saveData.edges || [],
+                projectId: saveData.projectId,
+                description: saveData.description || '',
+                projectName: projectData?.projectName || '',
+                projectDescription: projectData?.projectDescription || '',
+                grade: projectData?.grade || '',
+                projectDomain: projectData?.projectDomain || '',
+              } 
+            : {
+                ...prevData,
+                id: result.id,
+                name: result.name
+              };
+          
           if (!prevData) {
             console.warn('[handleSaveDiagram] No previous diagram data to update');
-            return {
-              id: result.id,
-              name: result.name,
-              diagramType: saveData.diagramType,
-              nodes: saveData.nodes,
-              edges: saveData.edges,
-              projectId: saveData.projectId,
-              description: saveData.description || '',
-              // Add other required fields
-              projectName: projectData?.projectName || '',
-              projectDescription: projectData?.projectDescription || '',
-              grade: projectData?.grade || '',
-              projectDomain: projectData?.projectDomain || '',
-            };
+          } else {
+            console.log('[handleSaveDiagram] Updating diagramData with saved values');
           }
           
-          console.log('[handleSaveDiagram] Updating diagramData with saved values');
-          return {
-            ...prevData,
-            id: result.id,
-            name: result.name
-          };
+          return newData;
         });
+        
+        // Clear the unsaved changes flag
+        setHasDiagramChanges(false);
         
         // Refresh diagram history to include this new/updated diagram
         fetchDiagramHistory();
@@ -447,6 +528,26 @@ export default function ToolsPage() {
         const actionType = existingId ? 'updated' : 'saved as';
         console.log(`[handleSaveDiagram] Diagram ${actionType} "${result.name || 'Unnamed Diagram'}" successfully`);
         alert(`Diagram ${actionType} "${result.name || 'Unnamed Diagram'}" successfully`);
+        
+        // If there's a pending action, process it now that we've saved
+        if (pendingAction) {
+          console.log("[handleSaveDiagram] Processing pending action after save:", pendingAction.type);
+          switch (pendingAction.type) {
+            case 'tab-change':
+              setActiveTab(pendingAction.payload);
+              break;
+            case 'close-diagram':
+              setDiagramStarted(false);
+              break;
+            case 'load-diagram':
+              if (pendingAction.payload) {
+                handleLoadDiagram(pendingAction.payload);
+              }
+              break;
+          }
+          setPendingAction(null);
+          setShowUnsavedChangesDialog(false);
+        }
       } else {
         console.error('[handleSaveDiagram] Failed to save diagram:', result.message);
         alert(`Failed to save diagram: ${result.message}`);
@@ -672,6 +773,136 @@ export default function ToolsPage() {
       console.error('[handleDeletePlanner] Error:', error);
       alert("An error occurred while deleting the plan.");
     }
+  };
+
+  // Add handler for the confirmation dialog
+  const handleDiscardChanges = useCallback(() => {
+    console.log("[handleDiscardChanges] Discarding changes and proceeding with pending action");
+    
+    // Process the pending action based on its type
+    if (pendingAction) {
+      switch (pendingAction.type) {
+        case 'tab-change':
+          // Change to the tab that was requested
+          setActiveTab(pendingAction.payload);
+          break;
+        case 'close-diagram':
+          // Close the diagram builder
+          setDiagramStarted(false);
+          break;
+        case 'load-diagram':
+          // Load the requested diagram
+          if (pendingAction.payload) {
+            handleLoadDiagram(pendingAction.payload);
+          }
+          break;
+      }
+    }
+    
+    // Clear pending action and reset flags
+    setPendingAction(null);
+    setHasDiagramChanges(false);
+    setShowUnsavedChangesDialog(false);
+  }, [pendingAction, handleLoadDiagram]);
+
+  // Add handler for saving before action
+  const handleSaveBeforeAction = useCallback(() => {
+    console.log("[handleSaveBeforeAction] Saving diagram before proceeding");
+    
+    // Save the current diagram state
+    const currentDiagram = currentDiagramRef.current;
+    if (currentDiagram && currentDiagram.nodes && currentDiagram.edges) {
+      handleSaveDiagram({
+        id: diagramData?.id,
+        name: diagramData?.name || currentDiagram.name || "Unsaved Diagram",
+        diagramType: diagramData?.diagramType || currentDiagram.diagramType || "custom",
+        nodes: currentDiagram.nodes,
+        edges: currentDiagram.edges
+      });
+    }
+    
+    // Process the pending action after saving
+    // This will be triggered after the save completes via the state change to hasDiagramChanges
+    if (pendingAction) {
+      switch (pendingAction.type) {
+        case 'tab-change':
+          setActiveTab(pendingAction.payload);
+          break;
+        case 'close-diagram':
+          setDiagramStarted(false);
+          break;
+        case 'load-diagram':
+          if (pendingAction.payload) {
+            handleLoadDiagram(pendingAction.payload);
+          }
+          break;
+      }
+    }
+    
+    // Clear pending action and reset dialog
+    setPendingAction(null);
+    setShowUnsavedChangesDialog(false);
+  }, [diagramData, handleSaveDiagram, pendingAction, handleLoadDiagram]);
+
+  // Add handler to cancel the pending action
+  const handleCancelAction = useCallback(() => {
+    console.log("[handleCancelAction] Cancelling pending action");
+    setPendingAction(null);
+    setShowUnsavedChangesDialog(false);
+  }, []);
+
+  // Add useEffect to handle component unmounting or page navigation
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasDiagramChanges) {
+        // Standard way to show a confirmation dialog when closing the page
+        e.preventDefault();
+        e.returnValue = "You have unsaved changes. Are you sure you want to leave?";
+        return e.returnValue;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [hasDiagramChanges]);
+
+  // Create our own alert dialog component
+  const UnsavedChangesDialog = ({
+    isOpen,
+    onClose,
+    onDiscard,
+    onSave
+  }: {
+    isOpen: boolean;
+    onClose: () => void;
+    onDiscard: () => void;
+    onSave: () => void;
+  }) => {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Unsaved Changes</DialogTitle>
+            <DialogDescription>
+              You have unsaved changes in your diagram. What would you like to do?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-4 flex justify-end gap-3">
+            <Button variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button variant="secondary" onClick={onDiscard}>
+              Discard Changes
+            </Button>
+            <Button onClick={onSave}>
+              Save Changes
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
   };
 
   if (loading) {
@@ -1111,7 +1342,7 @@ export default function ToolsPage() {
                             className="w-full" 
                             onClick={() => {
                               console.log(`[UI] Diagram card clicked: ID=${diagram.id}, Name=${diagram.name || "Unnamed Diagram"}`);
-                              handleLoadDiagram(diagram.id);
+                              handleDiagramLoadWithCheck(diagram.id);
                             }}
                           >
                             {/* Display a simple colored box instead of trying to load an image */}
@@ -1171,7 +1402,7 @@ export default function ToolsPage() {
                       <Maximize className="h-4 w-4 mr-1" />
                       Fullscreen
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => setDiagramStarted(false)}>
+                    <Button variant="ghost" size="sm" onClick={handleBackToDiagrams}>
                       <ArrowLeft className="h-4 w-4 mr-1" />
                       Back to Diagrams
                     </Button>
@@ -1190,6 +1421,7 @@ export default function ToolsPage() {
                         selectedDiagramTemplate : undefined
                       }
                       isFullScreen={false}
+                      onUpdate={handleDiagramChange}
                     />
                   </div>
                 </CardContent>
@@ -1247,6 +1479,14 @@ export default function ToolsPage() {
           </TabsContent>
         </Tabs>
       </div>
+      
+      {/* Unsaved Changes Dialog */}
+      <UnsavedChangesDialog
+        isOpen={showUnsavedChangesDialog}
+        onClose={handleCancelAction}
+        onDiscard={handleDiscardChanges}
+        onSave={handleSaveBeforeAction}
+      />
     </div>
   );
 }
