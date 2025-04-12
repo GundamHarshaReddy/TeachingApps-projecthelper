@@ -16,7 +16,9 @@ import ProjectPlanner from "../components/ProjectPlanner";
 import ResourceSuggestions from "../components/ResourceSuggestions";
 import { DiagramBuilder } from "../components/diagram-builder";
 import ProblemSolver from "../components/ProblemSolver";
-import MVPBuilder from "../components/mvp-builder/components/MVPBuilder";
+import dynamic from "next/dynamic";
+// Replace MVPBuilder with dynamic import of our new playground component
+const PlaygroundPage = dynamic(() => import("../components/playground/page"), { ssr: false });
 import type { ProjectData, ResourceData, AssistantData, DiagramData } from "../types";
 import { AssistantDataFromPage } from "../components/diagram-builder/types";
 import { Node, Edge } from "reactflow";
@@ -1472,7 +1474,7 @@ export default function ToolsPage() {
             <Card className="border-0 shadow-none h-full">
               <CardContent className="p-0 h-full">
                 <ToastProvider>
-                  <MVPBuilder />
+                  <PlaygroundPage />
                 </ToastProvider>
               </CardContent>
             </Card>
